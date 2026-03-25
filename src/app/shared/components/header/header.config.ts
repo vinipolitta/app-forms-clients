@@ -18,6 +18,6 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     label: 'Clientes',
     path: '/clients',
-    roles: ['ROLE_ADMIN', 'ROLE_FUNCIONARIO']
+    roles: ['ROLE_ADMIN']
   }
 ];

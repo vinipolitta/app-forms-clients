@@ -24,12 +24,12 @@ export const routes: Routes = [
 
     children: [
 
-      // 🏠 DASHBOARD
-      // {
-      //   path: '',
-      //   loadComponent: () => import('./features/dashboard/dashboard.component')
-      //     .then(m => m.DashboardComponent)
-      // },
+      // 🏠 HOME
+      {
+        path: '',
+        loadComponent: () => import('./features/home/home.component')
+          .then(m => m.HomeComponent)
+      },
 
       // 👤 USERS (ADMIN ONLY)
       {
