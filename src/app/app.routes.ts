@@ -6,67 +6,72 @@ export const routes: Routes = [
   // 🔓 ROTAS PÚBLICAS
   {
     path: 'login',
-    loadComponent: () => import('./features/auth/login/login.component')
-      .then(m => m.LoginComponent)
+    loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent)
   },
   {
     path: 'register',
-    loadComponent: () => import('./features/auth/register/register.component')
-      .then(m => m.RegisterComponent)
+    loadComponent: () => import('./features/auth/register/register.component').then(m => m.RegisterComponent)
   },
 
-  // 🔐 ROTAS PRIVADAS (COM LAYOUT)
+  // 📄 FORMULÁRIOS DINÂMICOS PÚBLICOS
+  {
+    path: 'forms/:slug', // Preencher formulário via slug
+    loadComponent: () => import('./features/form-dynamic/form-dynamic.component')
+      .then(m => m.FormDynamicComponent)
+  },
+  {
+    path: 'forms/:slug-list', // Listagem de respostas via slug
+    loadComponent: () => import('./features/template-list/template-list.component')
+      .then(m => m.TemplateListComponent)
+  },
+
+  // 🔐 ROTAS PRIVADAS COM LAYOUT
   {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./features/main-layout/main-layout.component')
       .then(m => m.MainLayoutComponent),
-
     children: [
-
-      // 🏠 HOME
-      {
-        path: '',
-        loadComponent: () => import('./features/home/home.component')
-          .then(m => m.HomeComponent)
-      },
-
-      // 👤 USERS (ADMIN ONLY)
+      { path: '', loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent) },
       {
         path: 'users',
-        loadComponent: () => import('./features/users/users.component')
-          .then(m => m.UsersComponent),
         canActivate: [authGuard],
-        data: {
-          roles: ['ROLE_ADMIN']
-        }
+        data: { roles: ['ROLE_ADMIN'] },
+        loadComponent: () => import('./features/users/users.component').then(m => m.UsersComponent)
       },
-
-      // 👥 CLIENTS (FUNCIONARIO + ADMIN)
       {
         path: 'clients',
-        loadComponent: () => import('./features/cliente/cliente.component')
-          .then(m => m.ClienteComponent),
         canActivate: [authGuard],
-        data: {
-          roles: ['ROLE_ADMIN', 'ROLE_FUNCIONARIO']
-        }
+        data: { roles: ['ROLE_ADMIN', 'ROLE_FUNCIONARIO'] },
+        loadComponent: () => import('./features/cliente/cliente.component').then(m => m.ClienteComponent)
       },
       {
-        path: 'clients/new',
+        path: 'form-builder',
         canActivate: [authGuard],
-        loadComponent: () => import('./features/cliente/create-client/create-client.component')
-          .then(m => m.CreateClientComponent)
+        data: { roles: ['ROLE_ADMIN'] },
+        loadComponent: () => import('./features/create-form-template/create-form-template.component')
+          .then(m => m.CreateTemplateComponent)
+      },
+
+
+      {
+        path: 'forms',             // lista geral de formulários
+        canActivate: [authGuard],
+        data: { roles: ['ROLE_ADMIN', 'ROLE_FUNCIONARIO', 'ROLE_CLIENT'] },
+        loadComponent: () => import('./features/template-list/template-list.component')
+          .then(m => m.TemplateListComponent)
+      },
+      {
+        path: 'forms-all',
+        canActivate: [authGuard],
+        data: { roles: ['ROLE_ADMIN'] }, // apenas admin
+        loadComponent: () => import('./features/forms-all/forms-all.component')
+          .then(m => m.FormsAllComponent)
       }
-
-
     ]
   },
 
   // ❌ FALLBACK
-  {
-    path: '**',
-    redirectTo: ''
-  }
+  { path: '**', redirectTo: '' }
 
 ];

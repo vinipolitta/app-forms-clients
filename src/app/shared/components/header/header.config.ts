@@ -18,6 +18,16 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     label: 'Clientes',
     path: '/clients',
+    roles: ['ROLE_ADMIN', 'ROLE_FUNCIONARIO']
+  },
+  {
+    label: 'Criar Formulário',
+    path: '/form-builder',
     roles: ['ROLE_ADMIN']
+  },
+  {
+    label: 'Formulárioss',
+    path: '/forms',
+    roles: ['ROLE_ADMIN', 'ROLE_FUNCIONARIO', 'ROLE_CLIENT']
   }
 ];

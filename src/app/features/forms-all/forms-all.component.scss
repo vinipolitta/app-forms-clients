@@ -1,0 +1,10 @@
+table {
+  th, td {
+    vertical-align: middle;
+  }
+
+  .btn {
+    transition: transform 0.2s;
+    &:hover { transform: scale(1.05); }
+  }
+}

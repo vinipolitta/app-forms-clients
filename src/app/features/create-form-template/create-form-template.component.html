@@ -1,0 +1,70 @@
+<div class="container mt-4" *ngIf="!loading; else loadingTpl">
+  <h3 *ngIf="!slug">Criar Formulário</h3>
+  <h3 *ngIf="slug">Visualizar Formulário: {{ template?.name }}</h3>
+
+  <div *ngIf="slug && template" class="mb-3">
+    <strong>Link público para preenchimento:</strong>
+    <a [routerLink]="formLink">{{ formLink }}</a>
+  </div>
+
+  <form [formGroup]="templateForm" (ngSubmit)="submit()" *ngIf="!slug">
+    <div class="mb-3">
+      <label>Nome do Template</label>
+      <input type="text" class="form-control" formControlName="name">
+    </div>
+
+    <div class="mb-3">
+      <label>Cliente</label>
+      <select class="form-select" formControlName="clientId">
+        <option value="" disabled>Selecione</option>
+        <option *ngFor="let c of clients" [value]="c.id">{{ c.name }}</option>
+      </select>
+    </div>
+
+    <div formArrayName="fields">
+      <div *ngFor="let f of fields.controls; let i=index" [formGroupName]="i" class="border p-3 mb-2">
+        <div class="d-flex justify-content-between">
+          <strong>Campo {{ i + 1 }}</strong>
+          <button type="button" class="btn btn-danger btn-sm" (click)="removeField(i)">Remover</button>
+        </div>
+
+        <div class="mb-2 mt-2">
+          <label>Label</label>
+          <input type="text" class="form-control" formControlName="label">
+        </div>
+
+        <div class="mb-2">
+          <label>Tipo</label>
+          <select class="form-select" formControlName="type">
+            <option value="text">Texto</option>
+            <option value="email">Email</option>
+            <option value="number">Número</option>
+            <option value="date">Data</option>
+          </select>
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" formControlName="required">
+          <label class="form-check-label">Obrigatório</label>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-secondary mb-2" (click)="addField()">Adicionar Campo</button>
+    <button type="submit" class="btn btn-primary mb-2 ms-2">Criar Template</button>
+  </form>
+
+  <div *ngIf="slug && template">
+    <h4>Campos do Formulário</h4>
+    <ul class="list-group">
+      <li class="list-group-item" *ngFor="let f of template.fields">
+        {{ f.label }} - {{ f.type }} 
+        <span *ngIf="f.required" class="text-danger">(*)</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<ng-template #loadingTpl>
+  <p>Carregando template...</p>
+</ng-template>
