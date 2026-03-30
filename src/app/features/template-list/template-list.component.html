@@ -12,32 +12,103 @@
     <a routerLink="/forms-all" class="btn-outline">← Voltar</a>
   </div>
 
-  <!-- Filtros -->
-  <div class="card" style="margin-bottom: 20px; padding: 16px 20px;">
-    <div class="filters-row">
-      <div class="filter-field" style="flex: 2;">
-        <label>Buscar</label>
+  <!-- Search + Filters -->
+  <div class="filters-card">
+
+    <div class="search-row">
+      <div class="search-input-wrapper">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input
           type="text"
-          placeholder="Pesquisar em todas as colunas..."
-          [ngModel]="filterText()"
-          (ngModelChange)="filterText.set($event)" />
+          class="search-input"
+          placeholder="Buscar em todos os campos..."
+          [ngModel]="globalSearch()"
+          (ngModelChange)="globalSearch.set($event)" />
+        @if (globalSearch()) {
+          <button class="clear-input" (click)="globalSearch.set('')" title="Limpar busca">×</button>
+        }
       </div>
-      <div class="filter-field">
-        <label>Data início</label>
-        <input
-          type="date"
-          [ngModel]="startDate()"
-          (ngModelChange)="startDate.set($event)" />
-      </div>
-      <div class="filter-field">
-        <label>Data fim</label>
-        <input
-          type="date"
-          [ngModel]="endDate()"
-          (ngModelChange)="endDate.set($event)" />
-      </div>
+
+      <button class="filters-toggle" (click)="filtersOpen.set(!filtersOpen())">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+        <span>Filtros</span>
+        @if (activeFiltersCount() > 0) {
+          <span class="filter-count-badge">{{ activeFiltersCount() }}</span>
+        }
+        <span class="toggle-chevron" [class.open]="filtersOpen()">▾</span>
+      </button>
     </div>
+
+    <!-- Dynamic Filters Panel -->
+    @if (filtersOpen() && filterableFields().length > 0) {
+      <div class="dynamic-filters">
+        @for (field of filterableFields(); track field.col) {
+          <div class="filter-item">
+            <label class="filter-label">{{ field.label }}</label>
+
+            @if (field.filterType === 'select') {
+              <select
+                class="filter-control"
+                [ngModel]="getFieldFilter(field.col)"
+                (ngModelChange)="setFieldFilter(field.col, $event)">
+                <option value="">Todos</option>
+                @for (val of field.uniqueVals; track val) {
+                  <option [value]="val">{{ val }}</option>
+                }
+              </select>
+
+            } @else if (field.filterType === 'daterange') {
+              <div class="date-range">
+                <input
+                  type="date"
+                  [ngModel]="getFieldFilter(field.col + '__start')"
+                  (ngModelChange)="setFieldFilter(field.col + '__start', $event)"
+                  title="Data inicial" />
+                <span class="date-sep">–</span>
+                <input
+                  type="date"
+                  [ngModel]="getFieldFilter(field.col + '__end')"
+                  (ngModelChange)="setFieldFilter(field.col + '__end', $event)"
+                  title="Data final" />
+              </div>
+
+            } @else if (field.filterType === 'number') {
+              <input
+                type="number"
+                class="filter-control"
+                placeholder="Valor..."
+                [ngModel]="getFieldFilter(field.col)"
+                (ngModelChange)="setFieldFilter(field.col, $event)" />
+
+            } @else {
+              <input
+                type="text"
+                class="filter-control"
+                placeholder="Filtrar..."
+                [ngModel]="getFieldFilter(field.col)"
+                (ngModelChange)="setFieldFilter(field.col, $event)" />
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Active Filter Chips -->
+    @if (activeFiltersList().length > 0) {
+      <div class="active-filters">
+        <span class="active-filters-label">Ativos:</span>
+        @for (f of activeFiltersList(); track f.key) {
+          <span class="filter-chip">
+            <span class="chip-label">{{ f.label }}</span>
+            <span class="chip-sep">:</span>
+            <span class="chip-value">{{ f.value }}</span>
+            <button class="chip-remove" (click)="clearFilter(f.key)" title="Remover filtro">×</button>
+          </span>
+        }
+        <button class="clear-all-btn" (click)="clearAllFilters()">Limpar tudo</button>
+      </div>
+    }
+
   </div>
 
   @if (loading()) {
@@ -57,16 +128,34 @@
   @if (filteredSubmissions().length > 0) {
     <div class="card">
       <div class="table-info">
-        <span class="result-count">{{ filteredSubmissions().length }} resultado(s)</span>
+        <span class="result-count">
+          {{ filteredSubmissions().length }}
+          @if (filteredSubmissions().length < submissions().length) {
+            de {{ submissions().length }}
+          }
+          resultado(s)
+        </span>
+        @if (sortColumn()) {
+          <span class="sort-info">
+            Ordenado por <strong>{{ formatLabel(sortColumn()!) }}</strong>
+            ({{ sortDirection() === 'asc' ? '↑ crescente' : '↓ decrescente' }})
+          </span>
+        }
       </div>
       <div style="overflow-x: auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th class="sortable" (click)="sort('id')">ID</th>
-              <th class="sortable" (click)="sort('createdAt')">Data</th>
+              <th class="sortable" (click)="sort('id')">
+                ID <span class="sort-icon">{{ sortIcon('id') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('createdAt')">
+                Data <span class="sort-icon">{{ sortIcon('createdAt') }}</span>
+              </th>
               @for (col of columns(); track col) {
-                <th class="sortable" (click)="sort(col)">{{ formatLabel(col) }}</th>
+                <th class="sortable" (click)="sort(col)">
+                  {{ formatLabel(col) }} <span class="sort-icon">{{ sortIcon(col) }}</span>
+                </th>
               }
             </tr>
           </thead>
