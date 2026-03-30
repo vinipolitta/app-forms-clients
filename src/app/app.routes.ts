@@ -20,7 +20,7 @@ export const routes: Routes = [
       .then(m => m.FormDynamicComponent)
   },
   {
-    path: 'forms/:slug-list', // Listagem de respostas via slug
+    path: 'forms/:slug/list',
     loadComponent: () => import('./features/template-list/template-list.component')
       .then(m => m.TemplateListComponent)
   },
@@ -70,7 +70,7 @@ export const routes: Routes = [
       {
         path: 'forms-all',
         canActivate: [authGuard],
-        data: { roles: ['ROLE_ADMIN'] }, // apenas admin
+        data: { roles: ['ROLE_ADMIN', 'ROLE_CLIENT'] }, // apenas admin e cliente
         loadComponent: () => import('./features/forms-all/forms-all.component')
           .then(m => m.FormsAllComponent)
       }

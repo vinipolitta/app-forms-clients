@@ -10,13 +10,11 @@ export const authGuard: CanActivateFn = (route) => {
 
   const user = auth.user();
 
-  // 🔐 NÃO LOGADO
   if (!user) {
     router.navigate(['/login']);
     return false;
   }
 
-  // 🎯 SUPORTE A MÚLTIPLAS ROLES
   const roles = route.data?.['roles'] as string[];
 
   if (roles && !roles.includes(user.role)) {

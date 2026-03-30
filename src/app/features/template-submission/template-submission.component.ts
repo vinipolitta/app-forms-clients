@@ -2,12 +2,14 @@ import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormTemplateService, FormTemplate, FormSubmission } from '../../core/services/form-template.service';
 import { signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, KeyValuePipe } from '@angular/common';
+
+
 
 @Component({
   selector: 'app-template-submission',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, KeyValuePipe],
   templateUrl: './template-submission.component.html',
   styleUrls: ['./template-submission.component.scss']
 })
@@ -22,37 +24,38 @@ export class TemplateSubmissionComponent implements OnInit {
 
   constructor() {}
 
-  ngOnInit(): void {
-    this.loading.set(true);
+ngOnInit(): void {
+  this.loading.set(true);
 
-    const slug = this.route.snapshot.paramMap.get('slug');
-    if (!slug) {
-      console.error('Slug não informado');
-      this.loading.set(false);
-      return;
-    }
+  const rawSlug = this.route.snapshot.paramMap.get('slug');
 
-    // Buscar template pelo slug
-    this.service.getTemplateBySlug(slug).subscribe({
-      next: (t) => {
-        this.template.set(t);
-
-        // Buscar submissões do template
-        this.service.getSubmissions(t.id).subscribe({
-          next: (subs) => {
-            this.submissions.set(subs);
-            this.loading.set(false);
-          },
-          error: (err) => {
-            console.error('Erro ao carregar submissões', err);
-            this.loading.set(false);
-          }
-        });
-      },
-      error: (err) => {
-        console.error('Erro ao carregar template', err);
-        this.loading.set(false);
-      }
-    });
+  if (!rawSlug) {
+    console.error('Slug não informado');
+    this.loading.set(false);
+    return;
   }
+
+  const slug = rawSlug.replace('-list', '');
+
+  this.service.getTemplateBySlug(slug).subscribe({
+    next: (t) => {
+      this.template.set(t);
+
+      this.service.getSubmissionsByTemplate(t.id).subscribe({
+        next: (subs) => {
+          this.submissions.set(subs);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          console.error('Erro ao carregar submissões', err);
+          this.loading.set(false);
+        }
+      });
+    },
+    error: (err) => {
+      console.error('Erro ao carregar template', err);
+      this.loading.set(false);
+    }
+  });
+}
 }

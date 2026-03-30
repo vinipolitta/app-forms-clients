@@ -110,7 +110,10 @@ export class CreateTemplateComponent implements OnInit {
         this.slug = res.slug;
         this.loadTemplateToForm(res);
       },
-      error: () => alert('Erro ao criar template')
+      error: (err) => {
+        console.error('Erro ao criar template:', err.status, err.error);
+        alert(`Erro ao criar template (${err.status}): ${err.error?.message ?? 'Verifique o console'}`);
+      }
     });
   }
 

@@ -1,54 +1,47 @@
 <div class="container mt-4">
 
-  <!-- Título -->
-  <h2>Todos os Templates</h2>
+  <h3>Formulários</h3>
 
-  <!-- Loading -->
   @if (loading()) {
-    <div class="alert alert-info">Carregando templates...</div>
+    <div class="alert alert-info">Carregando...</div>
   }
 
-  <!-- Templates disponíveis -->
-  @if (templates().length > 0) {
-    <table class="table table-striped mt-3">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Nome</th>
-          <th>Slug</th>
-          <th>Empresa</th>
-          <th>Campos</th>
-          <th>Ações</th> <!-- coluna para os botões -->
-        </tr>
-      </thead>
-      <tbody>
-        @for (template of templates(); track template.id) {
-          <tr>
-            <td>{{ template.id }}</td>
-            <td>{{ template.name }}</td>
-            <td>{{ template.slug }}</td>
-            <td>{{ template.clientName }}</td>
-            <td>
-              <ul>
-                @for (field of template.fields; track field.label) {
-                  <li>{{ field.label }} ({{ field.type }})</li>
-                }
-              </ul>
-            </td>
-            <td>
-              <a [routerLink]="['/forms', template.slug]" class="btn btn-primary btn-sm">Preencher</a>
-              <a [routerLink]="['/forms', template.slug + '-list']" class="btn btn-secondary btn-sm ms-1">Lista</a>
-            </td>
-          </tr>
+  @if (!loading() && templates().length === 0) {
+    <div class="alert alert-warning">Nenhum formulário encontrado</div>
+  }
+
+  @for (t of templates(); track t.id) {
+
+    <div class="card mb-3">
+
+      <div class="card-body">
+
+        <h5>{{ t.name }}</h5>
+        <small>{{ t.clientName }}</small>
+
+        <div class="mt-2">
+          <a [routerLink]="['/forms', t.slug]">Preencher</a> |
+          <a [routerLink]="['/forms', t.slug, 'list']">Ver respostas</a>
+        </div>
+
+        <hr>
+
+        <h6>Respostas:</h6>
+
+        @if (submissionsMap()[t.id]?.length === 0) {
+          <div>Nenhuma resposta</div>
         }
-      </tbody>
-    </table>
+
+        @for (s of submissionsMap()[t.id]; track s.id) {
+          <div class="border p-2 mb-2">
+            #{{ s.id }} - {{ s.createdAt | date:'short' }}
+          </div>
+        }
+
+      </div>
+
+    </div>
+
   }
 
-  <!-- Caso não haja templates -->
-  @if (templates().length === 0 && !loading()) {
-    <div class="alert alert-info mt-3">
-      Nenhum template encontrado.
-    </div>
-  }
 </div>

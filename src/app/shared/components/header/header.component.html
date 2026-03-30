@@ -10,7 +10,7 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item" *ngFor="let item of menuItems()">
-          <a class="nav-link" [routerLink]="item.path">{{ item.label }}</a>
+          <a class="nav-link" [routerLink]="item.path" [queryParams]="item.queryParams">{{ item.label }}</a>
         </li>
       </ul>
 

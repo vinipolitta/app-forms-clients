@@ -9,7 +9,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  const token = auth.getToken();
+  const token = auth.getToken(); // 🔥 CORRETO
 
   const newReq = token
     ? req.clone({
@@ -22,9 +22,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
       if (err.status === 401 || err.status === 403) {
         auth.logout();
-        router.navigate(['/login'], {
-          queryParams: { error: 'Sessão expirada' }
-        });
+        router.navigate(['/login']);
       }
 
       return throwError(() => err);

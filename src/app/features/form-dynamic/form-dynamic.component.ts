@@ -74,18 +74,20 @@ export class FormDynamicComponent implements OnInit {
       return;
     }
 
-    const payload = this.formFields().map((fg, i) => ({
-      label: fg.value.label,
-      type: fg.value.type,
-      value: (this.form.get(`field_${i}`) as FormControl).value
-    }));
+    const values: { [key: string]: string } = {};
 
-    console.log('Dados enviados:', payload);
+    this.formFields().forEach((fg, i) => {
+      const label = fg.value.label;
+      const value = (this.form.get(`field_${i}`) as FormControl).value;
+
+      values[label] = value;
+    });
+    console.log('Dados enviados:', values);
 
     if (this.template()) {
       this.service.submitForm({
         templateId: this.template()!.id,
-        data: payload
+        values: values
       }).subscribe({
         next: () => {
           alert('Formulário enviado com sucesso!');

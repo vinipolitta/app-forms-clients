@@ -13,7 +13,7 @@
       <label>Cliente</label>
       <select class="form-select" formControlName="clientId">
         <option value="" disabled>Selecione</option>
-        <option *ngFor="let c of clients" [value]="c.id">{{ c.name }}</option>
+        <option *ngFor="let c of clients" [ngValue]="c.id">{{ c.name }}</option>
       </select>
     </div>
 

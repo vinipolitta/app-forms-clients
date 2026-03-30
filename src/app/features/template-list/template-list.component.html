@@ -1,14 +1,100 @@
-<!-- src/app/features/template-list/template-list.component.html -->
 <div class="container mt-4">
-  <h3>Formulários {{ isAdmin ? '(Admin)' : '(Meus)' }}</h3>
-  <div *ngIf="loading">Carregando...</div>
 
-  <ul class="list-group mt-3" *ngIf="!loading">
-    <li class="list-group-item d-flex justify-content-between align-items-center" *ngFor="let t of templates">
-      {{ t.name }}
-      <a [routerLink]="['/form', t.slug]" class="btn btn-sm btn-outline-primary">Preencher</a>
-      <a [routerLink]="['/form', t.slug, 'submissions']" class="btn btn-sm btn-outline-success" *ngIf="isAdmin">Ver
-        Submissões</a>
-    </li>
-  </ul>
+  @if (template()) {
+    <h3>
+      {{ template()?.name }}
+      <small class="text-muted">({{ template()?.clientName }})</small>
+    </h3>
+  }
+
+  <!-- 🔍 FILTROS -->
+  <div class="row mt-3 g-2">
+
+    <!-- 🔎 Busca -->
+    <div class="col-md-4">
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Buscar..."
+        [ngModel]="filterText()"
+        (ngModelChange)="filterText.set($event)" />
+    </div>
+
+    <!-- 📅 Data início -->
+    <div class="col-md-3">
+      <input
+        type="date"
+        class="form-control"
+        [ngModel]="startDate()"
+        (ngModelChange)="startDate.set($event)" />
+    </div>
+
+    <!-- 📅 Data fim -->
+    <div class="col-md-3">
+      <input
+        type="date"
+        class="form-control"
+        [ngModel]="endDate()"
+        (ngModelChange)="endDate.set($event)" />
+    </div>
+
+  </div>
+
+  <!-- ⏳ LOADING -->
+  @if (loading()) {
+    <div class="alert alert-info mt-3">Carregando...</div>
+  }
+
+  <!-- ⚠️ SEM DADOS -->
+  @if (!loading() && filteredSubmissions().length === 0) {
+    <div class="alert alert-warning mt-3">
+      Nenhuma resposta encontrada.
+    </div>
+  }
+
+  <!-- 📊 TABELA -->
+  @if (filteredSubmissions().length > 0) {
+
+    <div class="table-responsive mt-4">
+      <table class="table table-bordered table-hover table-striped align-middle">
+
+        <thead class="table-dark">
+          <tr>
+            <th (click)="sort('id')" style="cursor:pointer">
+              ID
+            </th>
+
+            <th (click)="sort('createdAt')" style="cursor:pointer">
+              Data
+            </th>
+
+            @for (col of columns(); track col) {
+              <th (click)="sort(col)" style="cursor:pointer">
+                {{ formatLabel(col) }}
+              </th>
+            }
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (sub of filteredSubmissions(); track sub.id) {
+            <tr>
+              <td>{{ sub.id }}</td>
+
+              <td>{{ sub.createdAt | date:'short' }}</td>
+
+              @for (col of columns(); track col) {
+                <td>
+                  {{ getValue(sub, col) }}
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+
+      </table>
+    </div>
+
+  }
+
 </div>
