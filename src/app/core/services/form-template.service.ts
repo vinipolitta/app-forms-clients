@@ -147,6 +147,10 @@ export class FormTemplateService {
     return this.http.patch<AppointmentResponse>(`${this.appointmentsUrl}/${appointmentId}/cancel`, {});
   }
 
+  deleteSubmission(submissionId: number): Observable<void> {
+    return this.http.delete<void>(`${this.submissionsUrl}/${submissionId}`);
+  }
+
   getAppointmentsByTemplate(templateId: number): Observable<AppointmentResponse[]> {
     return this.http.get<AppointmentResponse[]>(`${this.appointmentsUrl}/template/${templateId}`);
   }

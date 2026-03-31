@@ -387,6 +387,9 @@
                       <span class="sort-icon" [style.color]="isSorted(col) ? '#3b82f6' : ''">{{ sortIcon(col) }}</span>
                     </th>
                   }
+                  @if (auth.isAdmin() || auth.isFuncionario() || auth.isClient()) {
+                    <th style="width:80px;">Ação</th>
+                  }
                 </tr>
               </thead>
               <tbody>
@@ -396,6 +399,18 @@
                     <td>{{ sub.createdAt | date:'dd/MM/yy HH:mm' }}</td>
                     @for (col of columns(); track col) {
                       <td>{{ getValue(sub, col) }}</td>
+                    }
+                    @if (auth.isAdmin() || auth.isFuncionario() || auth.isClient()) {
+                      <td>
+                        <button
+                          (click)="doDelete(sub.id)"
+                          [disabled]="deletingId() === sub.id"
+                          style="background:none;border:1px solid #fca5a5;color:#ef4444;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;"
+                          onmouseover="this.style.background='#fef2f2'"
+                          onmouseout="this.style.background='none'">
+                          {{ deletingId() === sub.id ? '...' : 'Excluir' }}
+                        </button>
+                      </td>
                     }
                   </tr>
                 }

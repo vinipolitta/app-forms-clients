@@ -49,8 +49,9 @@ export class TemplateListComponent implements OnInit {
   sortColumn      = signal<string | null>(null);
   sortDirection   = signal<'asc' | 'desc'>('asc');
 
-  // ── Cancelamento ────────────────────────────────────────────
+  // ── Cancelamento / deleção ───────────────────────────────────
   cancellingId    = signal<number | null>(null);
+  deletingId      = signal<number | null>(null);
 
   // ─────────────────────────────────────────────────────────────
   ngOnInit(): void {
@@ -297,6 +298,22 @@ export class TemplateListComponent implements OnInit {
   clearAllFilters() {
     this.globalSearch.set('');
     this.fieldFilters.set({});
+  }
+
+  doDelete(id: number) {
+    if (!confirm('Deseja excluir esta resposta? Esta ação não pode ser desfeita.')) return;
+    this.deletingId.set(id);
+    this.service.deleteSubmission(id).subscribe({
+      next: () => {
+        this.submissions.update(list => list.filter(s => s.id !== id));
+        this.buildColumns(this.submissions());
+        this.deletingId.set(null);
+      },
+      error: () => {
+        alert('Erro ao excluir resposta.');
+        this.deletingId.set(null);
+      }
+    });
   }
 
   doCancel(id: number) {
