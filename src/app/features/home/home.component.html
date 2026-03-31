@@ -1,90 +1,82 @@
-<div class="page">
+<div class="dashboard">
 
-  <!-- ══ HEADER ══════════════════════════════════════════════════ -->
-  <div class="page-header">
+  <!-- HEADER -->
+  <div class="dashboard-header">
     <div>
-      <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">Bem-vindo à plataforma FormsPro</p>
+      <h1>Dashboard</h1>
+      <p>Visão analítica dos formulários</p>
     </div>
-    @if (summary()) {
-      <button class="btn-outline" style="gap:8px;" (click)="exportDashboard()">
-        ⬇ Exportar Excel
-      </button>
-    }
+
+    <div class="header-buttons">
+      <button class="btn-export" (click)="exportDashboard()">⬇ Exportar</button>
+      <button class="btn-show-all" *ngIf="selected()" (click)="showAll()">🡄 Mostrar todos</button>
+    </div>
   </div>
 
-  <!-- ══ LOADING ══════════════════════════════════════════════════ -->
-  @if (loading()) {
-    <div class="loading-center"><div class="spinner"></div></div>
-  }
-
-  @if (!loading() && summary()) {
-    <div class="stats-row">
-      <div class="stat-card">
-        <span class="stat-value">{{ summary()!.totalTemplates }}</span>
-        <span class="stat-label">Formulários</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">{{ summary()!.totalClients }}</span>
-        <span class="stat-label">Clientes</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">{{ summary()!.totalSubmissions }}</span>
-        <span class="stat-label">Submissões</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">{{ summary()!.confirmedAppointments }}</span>
-        <span class="stat-label">Agend. confirmados</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">{{ summary()!.cancelledAppointments }}</span>
-        <span class="stat-label">Agend. cancelados</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">{{ summary()!.presentAttendanceRecords }} / {{ summary()!.totalAttendanceRecords }}</span>
-        <span class="stat-label">Presença</span>
-      </div>
-    </div>
-  }
-
-  <div class="home-grid">
-
-    <a routerLink="/forms-all" class="home-card">
-      <div class="home-card-icon" style="background: linear-gradient(135deg, #3b82f6, #6366f1);">📋</div>
-      <div class="home-card-content">
-        <h3>Formulários</h3>
-        <p>Visualize e gerencie todos os formulários e respostas</p>
-      </div>
-      <span class="home-card-arrow">→</span>
-    </a>
-
-    <a routerLink="/form-builder" class="home-card">
-      <div class="home-card-icon" style="background: linear-gradient(135deg, #22c55e, #16a34a);">✏️</div>
-      <div class="home-card-content">
-        <h3>Criar formulário</h3>
-        <p>Configure um novo template de formulário para um cliente</p>
-      </div>
-      <span class="home-card-arrow">→</span>
-    </a>
-
-    <a routerLink="/clients" class="home-card">
-      <div class="home-card-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">👥</div>
-      <div class="home-card-content">
-        <h3>Clientes</h3>
-        <p>Gerencie os clientes cadastrados na plataforma</p>
-      </div>
-      <span class="home-card-arrow">→</span>
-    </a>
-
-    <a routerLink="/users" class="home-card">
-      <div class="home-card-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🔑</div>
-      <div class="home-card-content">
-        <h3>Usuários</h3>
-        <p>Controle de acesso e permissões dos usuários</p>
-      </div>
-      <span class="home-card-arrow">→</span>
-    </a>
-
+  <!-- LOADING -->
+  <div *ngIf="loading()" class="loading">
+    <div class="spinner"></div>
   </div>
 
+  <!-- KPI GRID -->
+  <div class="kpi-grid" *ngIf="displaySummary() as s">
+    <div class="kpi-card blue">
+      <span>{{ s.totalTemplates }}</span>
+      <p>Formulários</p>
+    </div>
+
+    <div class="kpi-card purple">
+      <span>{{ s.totalSubmissions }}</span>
+      <p>Submissões</p>
+    </div>
+
+    <div class="kpi-card green">
+      <span>{{ confirmRate() }}%</span>
+      <p>Confirmação</p>
+    </div>
+
+    <div class="kpi-card orange">
+      <span>{{ attendanceRate() }}%</span>
+      <p>Presença</p>
+    </div>
+  </div>
+
+  <!-- TABELA -->
+  <div class="table-container" *ngIf="summary() as s">
+    <table class="dashboard-table">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Formulário</th>
+          <th>Submissões</th>
+          <th>Agendamentos</th>
+          <th>Confirmados</th>
+          <th>Presença</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of s.templates"
+            (click)="selectTemplate(t)"
+            [class.active]="selected()?.id === t.id">
+          <td>{{ t.clientName || '—' }}</td>
+          <td>{{ t.name }}</td>
+          <td>{{ t.submissionCount }}</td>
+          <td>{{ t.appointmentTotal }}</td>
+          <td><span class="badge success">{{ t.appointmentConfirmed }}</span></td>
+          <td>
+            <div class="progress">
+              <div class="bar" [style.width.%]="attendancePercent(t)"></div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- GRÁFICO -->
+  <div class="chart-container" *ngIf="summary()">
+    <h3 *ngIf="selected(); else generalTitle">{{ selected()?.name }}</h3>
+    <ng-template #generalTitle><h3>Resumo Geral</h3></ng-template>
+    <canvas #chartCanvas></canvas>
+  </div>
 </div>
