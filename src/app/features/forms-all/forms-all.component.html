@@ -50,8 +50,8 @@
     <div class="templates-grid">
       @for (t of templates(); track t.id) {
 
-        @let apps = appointmentsMap()[t.id] ?? [];
-        @let subs = submissionsMap()[t.id] ?? [];
+        @let apps = appointmentsMap()[t.id] || [];
+        @let subs = submissionsMap()[t.id] || [];
         @let att = attendanceMap()[t.id] || [];
         @let hasAppointments = apps.length > 0;
         @let hasAttendance = !hasAppointments && att.length > 0;
@@ -81,7 +81,7 @@
             <div class="tc-divider"></div>
 
             <div class="tc-stat">
-              <span class="tc-stat-value">{{ t.fields?.length ?? 0 }}</span>
+              <span class="tc-stat-value">{{ t.fields.length }}</span>
               <span class="tc-stat-label">Campos</span>
             </div>
           </div>
