@@ -1,187 +1,172 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  AfterViewInit,
-  ViewChild,
-  ElementRef,
-  inject,
-  signal,
-  computed,
-  ChangeDetectorRef
-} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DashboardService, DashboardSummary, TemplateStatResponse } from '../../core/services/dashboard.service';
-import { ExportService } from '../../core/services/export.service';
-import { Chart, ChartConfiguration } from 'chart.js/auto';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Chart, ChartConfiguration, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
+
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+
+interface TemplateStatResponse {
+  id: number;
+  name: string;
+  type: 'formulario' | 'agendamento' | 'lista-presenca';
+  clientName: string;
+  submissionCount: number;
+  appointmentTotal: number;
+  appointmentConfirmed: number;
+}
+
+interface KpiSummary {
+  [key: string]: {
+    totalTemplates: number;
+    totalSubmissions: number;
+    confirmedAppointments: number;
+    attendancePercent: number;
+  };
+}
 
 @Component({
-  standalone: true,
-  imports: [CommonModule],
   selector: 'app-home',
+  imports: [CommonModule, FormsModule],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss']
 })
-export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
+export class HomeComponent implements OnInit {
 
-  private dashboardService = inject(DashboardService);
-  private exportService = inject(ExportService);
-  private cdr = inject(ChangeDetectorRef);
-
-  summary = signal<DashboardSummary | null>(null);
-  loading = signal(true);
-  selected = signal<TemplateStatResponse | null>(null);
-
-  chart: Chart | null = null;
   @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
+  templates: TemplateStatResponse[] = [];
+  selectedTemplate: TemplateStatResponse | null = null;
+  chart: Chart | null = null;
+  loadingData = false;
 
-  displaySummary = computed(() => {
-    const s = this.summary();
-    const sel = this.selected();
+  constructor() { }
 
-    if (!s) return null;
-
-    if (sel) {
-      return {
-        totalTemplates: 1,
-        totalSubmissions: sel.submissionCount,
-        totalAppointments: sel.appointmentTotal,
-        confirmedAppointments: sel.appointmentConfirmed,
-        totalAttendanceRecords: sel.attendanceTotal,
-        presentAttendanceRecords: sel.attendancePresent
-      };
-    }
-
-    // Geral
-    const totalTemplates = s.templates.length;
-    const totalSubmissions = s.templates.reduce((acc, t) => acc + t.submissionCount, 0);
-    const totalAppointments = s.templates.reduce((acc, t) => acc + t.appointmentTotal, 0);
-    const confirmedAppointments = s.templates.reduce((acc, t) => acc + t.appointmentConfirmed, 0);
-    const totalAttendanceRecords = s.templates.reduce((acc, t) => acc + t.attendanceTotal, 0);
-    const presentAttendanceRecords = s.templates.reduce((acc, t) => acc + t.attendancePresent, 0);
-
-    return {
-      totalTemplates,
-      totalSubmissions,
-      totalAppointments,
-      confirmedAppointments,
-      totalAttendanceRecords,
-      presentAttendanceRecords
-    };
-  });
-
-  attendanceRate = computed(() => {
-    const s = this.displaySummary();
-    if (!s || s.totalAttendanceRecords === 0) return 0;
-    return Math.round((s.presentAttendanceRecords / s.totalAttendanceRecords) * 100);
-  });
-
-  confirmRate = computed(() => {
-    const s = this.displaySummary();
-    if (!s || s.totalAppointments === 0) return 0;
-    return Math.round((s.confirmedAppointments / s.totalAppointments) * 100);
-  });
-
-  ngOnInit() {
-    this.dashboardService.getSummary().subscribe({
-      next: (data) => {
-        this.summary.set(data);
-        this.loading.set(false);
-        this.cdr.detectChanges(); // forçar renderização
-            this.showAll();
-      },
-      error: () => this.loading.set(false)
-    });
-
+  ngOnInit(): void {
+    this.loadData();
   }
 
-  ngAfterViewInit() {
-    // Se não houver seleção, renderiza gráfico geral
-    if (!this.selected()) {
-      setTimeout(() => this.renderChart(null), 0);
-    }
+  loadData() {
+    this.loadingData = true;
+
+    setTimeout(() => {
+      // Dados reais simulados (exemplo presenca-motorola)
+      this.templates = [
+        { id: 1, name: 'motorola-forms', type: 'formulario', clientName: 'Motorola', submissionCount: 2, appointmentTotal: 0, appointmentConfirmed: 0 },
+        { id: 2, name: 'agendamento-motorola', type: 'agendamento', clientName: 'Motorola', submissionCount: 0, appointmentTotal: 2, appointmentConfirmed: 1 },
+        { id: 3, name: 'presenca-motorola', type: 'lista-presenca', clientName: 'Motorola', submissionCount: 0, appointmentTotal: 16, appointmentConfirmed: 7 },
+        { id: 4, name: 'natura-lista-presenca', type: 'lista-presenca', clientName: 'Natura', submissionCount: 0, appointmentTotal: 0, appointmentConfirmed: 0 },
+        { id: 5, name: 'teste', type: 'formulario', clientName: 'Natura', submissionCount: 0, appointmentTotal: 0, appointmentConfirmed: 0 }
+      ];
+      this.loadingData = false;
+      this.renderChart();
+    }, 500);
   }
 
   selectTemplate(t: TemplateStatResponse) {
-    this.selected.set(t);
-    setTimeout(() => this.renderChart(t), 0);
+    this.selectedTemplate = t;
+    this.renderChart();
+  }
+
+  selected() {
+    return this.selectedTemplate;
   }
 
   showAll() {
-    this.selected.set(null);
-    setTimeout(() => this.renderChart(null), 0);
+    this.selectedTemplate = null;
+    this.renderChart();
   }
 
-  renderChart(t: TemplateStatResponse | null = null) {
-    if (!this.summary() || !this.chartCanvas) return;
-
-    const ctx = this.chartCanvas.nativeElement.getContext('2d');
-    if (!ctx) return;
-
-    let config: ChartConfiguration;
-
-    if (t) {
-      // gráfico do template selecionado
-      config = {
-        type: 'bar',
-        data: {
-          labels: ['Submissões', 'Agendamentos', 'Confirmados', 'Presentes'],
-          datasets: [{
-            label: t.clientName || t.name,
-            data: [t.submissionCount, t.appointmentTotal, t.appointmentConfirmed, t.attendancePresent],
-            backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#3b82f6'],
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true } }
-        }
-      };
-    } else {
-      // gráfico geral
-      const s = this.summary()!;
-      const labels = s.templates.map(tpl => tpl.clientName || tpl.name);
-      const submissionData = s.templates.map(tpl => tpl.submissionCount);
-      const appointmentData = s.templates.map(tpl => tpl.appointmentTotal);
-      const confirmedData = s.templates.map(tpl => tpl.appointmentConfirmed);
-      const presentData = s.templates.map(tpl => tpl.attendancePresent);
-
-      config = {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            { label: 'Submissões', data: submissionData, backgroundColor: '#4f46e5', borderRadius: 4 },
-            { label: 'Agendamentos', data: appointmentData, backgroundColor: '#10b981', borderRadius: 4 },
-            { label: 'Confirmados', data: confirmedData, backgroundColor: '#f59e0b', borderRadius: 4 },
-            { label: 'Presentes', data: presentData, backgroundColor: '#3b82f6', borderRadius: 4 }
-          ]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: true } },
-          scales: { y: { beginAtZero: true } }
-        }
-      };
-    }
-
-    if (this.chart) this.chart.destroy();
-    this.chart = new Chart(ctx, config);
+  loading() {
+    return this.loadingData;
   }
 
   attendancePercent(t: TemplateStatResponse) {
-    if (!t.attendanceTotal) return 0;
-    return Math.round((t.attendancePresent / t.attendanceTotal) * 100);
+    if (t.appointmentTotal === 0) return 0;
+    return (t.appointmentConfirmed / t.appointmentTotal) * 100;
+  }
+
+  kpiSummary(): KpiSummary {
+    const summary: KpiSummary = {};
+
+    ['formulario','agendamento','lista-presenca'].forEach(type => {
+      const filtered = this.templates.filter(t => t.type === type);
+      const totalSubmissions = filtered.reduce((acc, t) => acc + t.submissionCount, 0);
+      const confirmedAppointments = filtered.reduce((acc, t) => acc + t.appointmentConfirmed, 0);
+      const attendancePercent = filtered.length
+        ? filtered.reduce((acc, t) => acc + this.attendancePercent(t), 0) / filtered.length
+        : 0;
+
+      summary[type] = {
+        totalTemplates: filtered.length,
+        totalSubmissions,
+        confirmedAppointments,
+        attendancePercent
+      };
+    });
+
+    return summary;
+  }
+
+  selectedKpi(): KpiSummary {
+    const sel = this.selected();
+    const kpi = this.kpiSummary();
+    if (!sel) return kpi;
+
+    const type = sel.type;
+    return {
+      [type]: {
+        totalTemplates: 1,
+        totalSubmissions: sel.submissionCount,
+        confirmedAppointments: sel.appointmentConfirmed,
+        attendancePercent: this.attendancePercent(sel)
+      }
+    };
+  }
+
+  renderChart() {
+    const canvas = this.chartCanvas?.nativeElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
+    }
+
+    const sel = this.selected();
+    const kpi = this.kpiSummary();
+
+    const labels = sel ? ['Submissões', 'Confirmados', 'Presença'] : ['Formulários','Agendamentos','Presença'];
+    const data = sel
+      ? [sel.submissionCount, sel.appointmentConfirmed, this.attendancePercent(sel)]
+      : [kpi['formulario'].totalTemplates, kpi['agendamento'].totalTemplates, kpi['lista-presenca'].totalTemplates];
+
+    const config: ChartConfiguration = {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: sel ? sel.name : 'Resumo Geral',
+          data,
+          backgroundColor: ['#3498db', '#2ecc71', '#e67e22']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    };
+
+    this.chart = new Chart(ctx, config);
   }
 
   exportDashboard() {
-    if (!this.summary()) return;
-    this.exportService.exportDashboard(this.summary()!);
+    alert('Função de exportar ainda não implementada.');
   }
 
-  ngOnDestroy() {
-    if (this.chart) this.chart.destroy();
-  }
 }

@@ -5,15 +5,15 @@ import { Observable } from 'rxjs';
 export interface TemplateStatResponse {
   id: number;
   name: string;
-  slug: string;
-  clientName: string | null;
-  hasSchedule: boolean;
+  clientName?: string;
   submissionCount: number;
   appointmentTotal: number;
   appointmentConfirmed: number;
-  appointmentCancelled: number;
   attendanceTotal: number;
   attendancePresent: number;
+  type?: 'formulario' | 'agendamento' | 'lista-presenca';
+  hasSchedule?: boolean;           // se o template tem agendamento
+  appointmentCancelled?: number;   // quantidade de agendamentos cancelados
 }
 
 export interface DashboardSummary {
@@ -33,7 +33,7 @@ export class DashboardService {
 
   private readonly base = 'http://localhost:8080/dashboard';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   getSummary(): Observable<DashboardSummary> {
     return this.http.get<DashboardSummary>(this.base);

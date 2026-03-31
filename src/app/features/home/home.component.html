@@ -1,53 +1,44 @@
 <div class="dashboard">
 
-  <!-- HEADER -->
   <div class="dashboard-header">
     <div>
       <h1>Dashboard</h1>
-      <p>Visão analítica dos formulários</p>
+      <p>Visão geral de formulários, agendamentos e listas de presença</p>
     </div>
-
-    <div class="header-buttons">
-      <button class="btn-export" (click)="exportDashboard()">⬇ Exportar</button>
-      <button class="btn-show-all" *ngIf="selected()" (click)="showAll()">🡄 Mostrar todos</button>
-    </div>
+    <button class="btn-export" (click)="exportDashboard()">⬇ Exportar</button>
   </div>
 
-  <!-- LOADING -->
-  <div *ngIf="loading()" class="loading">
+  <!-- Loading -->
+  <div *ngIf="loadingData" class="loading">
     <div class="spinner"></div>
   </div>
 
-  <!-- KPI GRID -->
-  <div class="kpi-grid" *ngIf="displaySummary() as s">
-    <div class="kpi-card blue">
-      <span>{{ s.totalTemplates }}</span>
-      <p>Formulários</p>
-    </div>
-
-    <div class="kpi-card purple">
-      <span>{{ s.totalSubmissions }}</span>
-      <p>Submissões</p>
-    </div>
-
-    <div class="kpi-card green">
-      <span>{{ confirmRate() }}%</span>
-      <p>Confirmação</p>
-    </div>
-
-    <div class="kpi-card orange">
-      <span>{{ attendanceRate() }}%</span>
-      <p>Presença</p>
-    </div>
+  <!-- CARDS DINÂMICOS -->
+  <div class="kpi-grid" *ngIf="!loadingData && selectedKpi() as kpi">
+    <ng-container *ngFor="let type of ['formulario','agendamento','lista-presenca']">
+      <div class="kpi-card"
+           [ngClass]="{
+             'blue': type==='formulario',
+             'green': type==='agendamento',
+             'orange': type==='lista-presenca'
+           }" 
+           *ngIf="kpi[type]">
+        <span>{{ kpi[type].totalTemplates }}</span>
+        <p>{{ type | titlecase }}</p>
+        <span class="small">Submissões: {{ kpi[type].totalSubmissions }}</span>
+        <span class="small">Confirmados: {{ kpi[type].confirmedAppointments }}</span>
+        <span class="small">Presença: {{ kpi[type].attendancePercent | number:'1.0-0' }}%</span>
+      </div>
+    </ng-container>
   </div>
 
   <!-- TABELA -->
-  <div class="table-container" *ngIf="summary() as s">
+  <div class="table-container" *ngIf="!loadingData && templates.length">
     <table class="dashboard-table">
       <thead>
         <tr>
           <th>Cliente</th>
-          <th>Formulário</th>
+          <th>Formulário / Tipo</th>
           <th>Submissões</th>
           <th>Agendamentos</th>
           <th>Confirmados</th>
@@ -55,14 +46,14 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let t of s.templates"
-            (click)="selectTemplate(t)"
-            [class.active]="selected()?.id === t.id">
+        <tr *ngFor="let t of templates" 
+            (click)="selectTemplate(t)" 
+            [class.active]="selected()?.id===t.id">
           <td>{{ t.clientName || '—' }}</td>
-          <td>{{ t.name }}</td>
+          <td>{{ t.name }} ({{ t.type }})</td>
           <td>{{ t.submissionCount }}</td>
           <td>{{ t.appointmentTotal }}</td>
-          <td><span class="badge success">{{ t.appointmentConfirmed }}</span></td>
+          <td>{{ t.appointmentConfirmed }}</td>
           <td>
             <div class="progress">
               <div class="bar" [style.width.%]="attendancePercent(t)"></div>
@@ -71,12 +62,16 @@
         </tr>
       </tbody>
     </table>
+    <div class="show-all">
+      <button (click)="showAll()">Mostrar todos</button>
+    </div>
   </div>
 
   <!-- GRÁFICO -->
-  <div class="chart-container" *ngIf="summary()">
-    <h3 *ngIf="selected(); else generalTitle">{{ selected()?.name }}</h3>
-    <ng-template #generalTitle><h3>Resumo Geral</h3></ng-template>
+  <div class="chart-container" *ngIf="!loadingData && templates.length">
+    <h3 *ngIf="selected(); else geral">{{ selected()?.name }} ({{ selected()?.type }})</h3>
+    <ng-template #geral><h3>Resumo Geral</h3></ng-template>
     <canvas #chartCanvas></canvas>
   </div>
+
 </div>
