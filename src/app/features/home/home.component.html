@@ -1,12 +1,19 @@
 <div class="page">
 
+  <!-- ══ HEADER ══════════════════════════════════════════════════ -->
   <div class="page-header">
     <div>
       <h1 class="page-title">Dashboard</h1>
       <p class="page-subtitle">Bem-vindo à plataforma FormsPro</p>
     </div>
+    @if (summary()) {
+      <button class="btn-outline" style="gap:8px;" (click)="exportDashboard()">
+        ⬇ Exportar Excel
+      </button>
+    }
   </div>
 
+  <!-- ══ LOADING ══════════════════════════════════════════════════ -->
   @if (loading()) {
     <div class="loading-center"><div class="spinner"></div></div>
   }
