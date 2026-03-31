@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { FormTemplateService, FormTemplate, AppointmentResponse, FormSubmission } from '../../core/services/form-template.service';
+import { FormTemplateService, FormTemplate, AppointmentResponse, FormSubmission, AttendanceRecord } from '../../core/services/form-template.service';
 import { AuthService } from '../../core/services/auth.service';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -21,6 +21,7 @@ export class FormsAllComponent implements OnInit {
   templates = signal<FormTemplate[]>([]);
   appointmentsMap = signal<{ [templateId: number]: AppointmentResponse[] }>({});
   submissionsMap = signal<{ [templateId: number]: FormSubmission[] }>({});
+  attendanceMap = signal<{ [templateId: number]: AttendanceRecord[] }>({});
   loading = signal(true);
 
   page = signal(0);
@@ -61,11 +62,12 @@ export class FormsAllComponent implements OnInit {
           return;
         }
 
-        // Busca appointments e submissions (size=5 para preview no card)
+        // Busca appointments, submissions e attendance para preview no card
         const calls = templates.map(t =>
           forkJoin({
             appointments: this.service.getAppointmentsByTemplate(t.id, 0, 5).pipe(map(p => p.content)),
-            submissions: this.service.getSubmissionsByTemplate(t.id, 0, 5).pipe(map(p => p.content))
+            submissions: this.service.getSubmissionsByTemplate(t.id, 0, 5).pipe(map(p => p.content)),
+            attendance: this.service.getAttendance(t.id, 0, 10).pipe(map(p => p.content))
           })
         );
 
@@ -73,14 +75,17 @@ export class FormsAllComponent implements OnInit {
           next: (results) => {
             const appMap: { [key: number]: AppointmentResponse[] } = {};
             const subMap: { [key: number]: FormSubmission[] } = {};
+            const attMap: { [key: number]: AttendanceRecord[] } = {};
 
             templates.forEach((t, index) => {
               appMap[t.id] = results[index].appointments;
               subMap[t.id] = results[index].submissions;
+              attMap[t.id] = results[index].attendance;
             });
 
             this.appointmentsMap.set(appMap);
             this.submissionsMap.set(subMap);
+            this.attendanceMap.set(attMap);
             this.loading.set(false);
           },
           error: (err) => {

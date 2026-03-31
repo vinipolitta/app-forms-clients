@@ -88,7 +88,7 @@ export class TemplateListComponent implements OnInit {
           error: ()   => this.appointments.set([])
         });
 
-        this.service.getAttendance(t.id).subscribe({
+        this.service.getAttendance(t.id).pipe(map(p => p.content)).subscribe({
           next: (recs) => {
             this.attendance.set(recs);
             // Define aba padrão após carregar tudo
