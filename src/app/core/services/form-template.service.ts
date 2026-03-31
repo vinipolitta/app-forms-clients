@@ -190,7 +190,7 @@ export class FormTemplateService {
     );
   }
 
-  getAttendance(templateId: number, page = 0, size = 1000): Observable<PageResponse<AttendanceRecord>> {
+  getAttendance(templateId: number, page = 0, size = 500): Observable<PageResponse<AttendanceRecord>> {
     return this.http.get<PageResponse<AttendanceRecord>>(
       `http://localhost:8080/attendance/template/${templateId}?page=${page}&size=${size}`
     );

@@ -52,7 +52,9 @@
 
         @let apps = appointmentsMap()[t.id] ?? [];
         @let subs = submissionsMap()[t.id] ?? [];
+        @let att = attendanceMap()[t.id] || [];
         @let hasAppointments = apps.length > 0;
+        @let hasAttendance = !hasAppointments && att.length > 0;
 
         <div class="template-card">
 
@@ -69,10 +71,10 @@
           <div class="tc-stats">
             <div class="tc-stat">
               <span class="tc-stat-value">
-                {{ hasAppointments ? apps.length : subs.length }}
+                {{ hasAppointments ? apps.length : hasAttendance ? att.length : subs.length }}
               </span>
               <span class="tc-stat-label">
-                {{ hasAppointments ? 'Agendamentos' : 'Respostas' }}
+                {{ hasAppointments ? 'Agendamentos' : hasAttendance ? 'Presença' : 'Respostas' }}
               </span>
             </div>
 
@@ -91,7 +93,7 @@
             </a>
 
             <a [routerLink]="['/forms', t.slug, 'list']" class="tc-btn-outline">
-              {{ hasAppointments ? 'Ver agenda' : 'Ver respostas' }}
+              {{ hasAppointments ? 'Ver agenda' : hasAttendance ? 'Ver presença' : 'Ver respostas' }}
             </a>
           </div>
 
@@ -109,6 +111,19 @@
                     {{ a.slotDate | date:'dd/MM/yy' }} {{ a.slotTime }}
                   </span>
                   <span class="tc-sub-date">{{ a.bookedByName }}</span>
+                </div>
+              }
+
+            } @else if (hasAttendance) {
+
+              <p class="tc-recent-title">Lista de presença</p>
+
+              @for (r of att.slice(0, 3); track r.id) {
+                <div class="tc-sub-row">
+                  <span class="tc-sub-id">#{{ r.id }}</span>
+                  <span class="tc-sub-date" [style.color]="r.attended ? '#22c55e' : '#ef4444'">
+                    {{ r.attended ? 'Presente' : 'Ausente' }}
+                  </span>
                 </div>
               }
 

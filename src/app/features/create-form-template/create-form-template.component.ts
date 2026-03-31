@@ -11,6 +11,7 @@ import { ClientService, Client } from '../../core/services/client.service';
 import { ExportService } from '../../core/services/export.service';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { switchMap, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 @Component({
   selector: 'app-create-template',
@@ -142,7 +143,7 @@ export class CreateTemplateComponent implements OnInit {
 
   loadClients() {
     this.clientService.findAll(0, 100).subscribe({
-      next: clients => { this.clients = clients; this.cdr.detectChanges(); },
+      next: res => { this.clients = res.content; this.cdr.detectChanges(); },
       error: () => console.error('Erro ao carregar clientes')
     });
   }
@@ -255,7 +256,7 @@ export class CreateTemplateComponent implements OnInit {
 
   // ── Attendance (view mode) ─────────────────────────────────────
   loadAttendance(templateId: number) {
-    this.templateService.getAttendance(templateId).subscribe({
+    this.templateService.getAttendance(templateId).pipe(map(p => p.content)).subscribe({
       next: (records) => this.setAttendanceRecords(records),
       error: () => {}
     });
