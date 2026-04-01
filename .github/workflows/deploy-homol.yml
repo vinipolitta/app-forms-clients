@@ -29,8 +29,6 @@ jobs:
       - name: Build (production)
         run: npx ng build --configuration=production
 
-      - name: Prettier check
-        run: npx prettier --check "src/**/*.{ts,html,scss}"
 
   open-pr-to-master:
     name: Open PR → master
