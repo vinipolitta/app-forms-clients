@@ -6,6 +6,7 @@ import {
   BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend
 } from 'chart.js';
 import { DashboardService, DashboardSummary, TemplateStatResponse } from '../../core/services/dashboard.service';
+import { PaginationComponent, SpringPage } from '../../shared/components/pagination/pagination.component';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -25,7 +26,7 @@ export interface KpiCard {
 
 @Component({
   selector: 'app-home',
-  imports: [CommonModule],
+  imports: [CommonModule, PaginationComponent],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss']
 })
@@ -44,6 +45,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   templates: TemplateStatResponse[] = [];
   summary: DashboardSummary | null = null;
   loadingData = false;
+
+  readonly pageSize = 5;
+  pagination: SpringPage = { page: 0, size: this.pageSize, totalElements: 0, totalPages: 0 };
 
   private _selected = signal<TemplateStatResponse | null>(null);
   private chart: Chart | null = null;
@@ -64,14 +68,15 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.chart?.destroy();
   }
 
-  loadData(): void {
+  loadData(page = this.pagination.page): void {
     this.loadingData = true;
-    this.dashboardService.getSummary()
+    this.dashboardService.getSummary(page, this.pagination.size)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data) => {
           this.summary = data;
           this.templates = data.templates;
+          this.pagination = { page: data.page, size: data.size, totalElements: data.totalElements, totalPages: data.totalPages };
           this.loadingData = false;
           this.cdr.detectChanges();
         },
@@ -79,6 +84,11 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.loadingData = false;
         }
       });
+  }
+
+  onPageChange(page: number): void {
+    this._selected.set(null);
+    this.loadData(page);
   }
 
   selected(): TemplateStatResponse | null {

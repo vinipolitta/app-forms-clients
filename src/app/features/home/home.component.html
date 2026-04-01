@@ -6,6 +6,8 @@
       <p>Visão geral de formulários, agendamentos e listas de presença</p>
     </div>
     <button class="btn-export" (click)="exportDashboard()">&#11015; Exportar</button>
+     <button class="btn-export" (click)="showAll()">Mostrar todos</button>
+
   </div>
 
   @if (loadingData) {
@@ -102,8 +104,11 @@
           }
         </tbody>
       </table>
-      <div class="show-all">
-        <button (click)="showAll()">Mostrar todos</button>
+      <div class="table-footer">
+        @if (selected()) {
+          <button class="btn-clear-filter" (click)="showAll()">&#10005; Limpar seleção</button>
+        }
+        <app-pagination [pagination]="pagination" (pageChange)="onPageChange($event)" />
       </div>
     </div>
   }
