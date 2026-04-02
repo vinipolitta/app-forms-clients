@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  apiUrl: 'https://api-homol.DOMINIO.com',
+  apiUrl: 'https://poc-fabiano-production.up.railway.app',
 };
