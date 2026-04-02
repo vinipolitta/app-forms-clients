@@ -17,7 +17,9 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Username</th>
+              <th>Usuário</th>
+              <th>Nome</th>
+              <th>E-mail</th>
               <th>Perfil</th>
               @if (isAdmin()) {
                 <th style="width: 160px"></th>
@@ -32,13 +34,29 @@
                 </td>
 
                 <td>
+                  <div class="user-cell">
+                    <div class="user-avatar-sm">{{ user.username.charAt(0).toUpperCase() }}</div>
+                    <span class="fw-500">{{ user.username }}</span>
+                  </div>
+                </td>
+
+                <td>
                   @if (editingUserId() === user.id) {
-                    <input class="inline-input" [(ngModel)]="editedUser().username" />
+                    <input class="inline-input" [(ngModel)]="editedUser().name" placeholder="Nome" />
                   } @else {
-                    <div class="user-cell">
-                      <div class="user-avatar-sm">{{ user.username.charAt(0).toUpperCase() }}</div>
-                      <span class="fw-500">{{ user.username }}</span>
-                    </div>
+                    {{ user.name }}
+                  }
+                </td>
+
+                <td>
+                  @if (editingUserId() === user.id) {
+                    <input
+                      class="inline-input"
+                      [(ngModel)]="editedUser().email"
+                      placeholder="E-mail"
+                    />
+                  } @else {
+                    {{ user.email }}
                   }
                 </td>
 
@@ -92,7 +110,6 @@
         </table>
       </div>
 
-      <!-- Paginação -->
       @if (totalPages() > 1) {
         <div class="pagination">
           <button class="btn-outline" [disabled]="page() === 0" (click)="prevPage()">

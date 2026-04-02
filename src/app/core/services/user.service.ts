@@ -6,12 +6,15 @@ import { environment } from '../../../environments/environment';
 
 export interface User {
   id: number;
+  name: string;
+  email: string;
   username: string;
   role: string;
 }
 
 export interface UpdateUserRequest {
-  username: string;
+  name: string;
+  email: string;
   role: string;
 }
 
@@ -27,10 +30,10 @@ export class UserService {
   }
 
   update(id: number, data: UpdateUserRequest): Observable<void> {
-    return this.http.put<void>(`${this.api}/${id}`, data);
+    return this.http.put<void>(`${this.api}/${id}`, data, { responseType: 'text' as 'json' });
   }
 
   delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.api}/${id}`);
+    return this.http.delete<void>(`${this.api}/${id}`, { responseType: 'text' as 'json' });
   }
 }

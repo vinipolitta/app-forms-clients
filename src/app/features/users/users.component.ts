@@ -74,7 +74,8 @@ export class UsersComponent implements OnInit {
 
     this.userService
       .update(id, {
-        username: data.username!,
+        name: data.name!,
+        email: data.email!,
         role: data.role!,
       })
       .subscribe(() => {
