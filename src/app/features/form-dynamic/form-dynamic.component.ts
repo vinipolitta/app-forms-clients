@@ -279,7 +279,7 @@ export class FormDynamicComponent implements OnInit {
 
     this.service.submitForm({ templateId: template.id, values }).subscribe({
       next: () => {
-        this.submitted.set(true);
+        this.messages.success('Formulário enviado com sucesso!');
         this.form.reset();
       },
       error: () => this.messages.error('Erro ao enviar formulário'),

@@ -7,8 +7,10 @@ import {
   ElementRef,
   signal,
   inject,
+  computed,
   ChangeDetectorRef,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import {
   Chart,
@@ -30,6 +32,10 @@ import {
   PaginationComponent,
   SpringPage,
 } from '../../shared/components/pagination/pagination.component';
+import {
+  DataTableComponent,
+  DataTableColumn,
+} from '../../shared/components/data-table/data-table.component';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -49,7 +55,7 @@ export interface KpiCard {
 
 @Component({
   selector: 'app-home',
-  imports: [CommonModule, PaginationComponent],
+  imports: [CommonModule, FormsModule, PaginationComponent, DataTableComponent],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
 })
@@ -67,6 +73,37 @@ export class HomeComponent implements OnInit, OnDestroy {
   templates: TemplateStatResponse[] = [];
   summary: DashboardSummary | null = null;
   loadingData = false;
+
+  homeColumns: DataTableColumn[] = [
+    { key: 'clientName', label: 'Cliente' },
+    { key: 'name', label: 'Nome' },
+    { key: 'type', label: 'Tipo' },
+    { key: 'submissionCount', label: 'Submissões' },
+    { key: 'total', label: 'Total' },
+    { key: 'confirmedOrPresent', label: 'Confirmados / Presentes' },
+    { key: 'presence', label: 'Presença' },
+  ];
+
+  search = signal('');
+  typeFilter = signal<'all' | 'formulario' | 'agendamento' | 'lista-presenca'>('all');
+
+  filteredTemplates = computed(() => {
+    const search = this.search().toLowerCase().trim();
+    return this.templates.filter((t) => {
+      const type = this.inferType(t);
+      const matchesType = this.typeFilter() === 'all' || type === this.typeFilter();
+      if (!matchesType) return false;
+      if (!search) return true;
+      return (
+        t.clientName?.toLowerCase().includes(search) ||
+        t.name.toLowerCase().includes(search) ||
+        type.toLowerCase().includes(search) ||
+        String(t.submissionCount).includes(search) ||
+        String(t.appointmentTotal).includes(search) ||
+        String(t.attendanceTotal ?? '').includes(search)
+      );
+    });
+  });
 
   // Carregado uma vez, independente da paginação — usado nos KPI cards
   private allTemplatesGlobal = signal<TemplateStatResponse[]>([]);
@@ -134,6 +171,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  clearHomeFilters(): void {
+    this.search.set('');
+    this.typeFilter.set('all');
+  }
+
   selected(): TemplateStatResponse | null {
     return this._selected();
   }
@@ -142,6 +184,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     this._selected.set(t);
     this.renderChart();
   }
+
+  homeRowClass = (t: TemplateStatResponse) => ({
+    active: this.selected()?.id === t.id,
+  });
 
   showAll(): void {
     this._selected.set(null);
