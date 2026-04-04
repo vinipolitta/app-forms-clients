@@ -6,6 +6,7 @@ import {
   ViewChild,
   ElementRef,
   signal,
+  inject,
   ChangeDetectorRef,
 } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
@@ -24,6 +25,7 @@ import {
   DashboardSummary,
   TemplateStatResponse,
 } from '../../core/services/dashboard.service';
+import { MessageService } from '../../core/services/message.service';
 import {
   PaginationComponent,
   SpringPage,
@@ -76,6 +78,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   private chart: Chart | null = null;
   private destroy$ = new Subject<void>();
 
+  private messages = inject(MessageService);
+
   constructor(
     private dashboardService: DashboardService,
     private cdr: ChangeDetectorRef,
@@ -127,6 +131,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   onPageChange(page: number): void {
     this._selected.set(null);
     this.loadData(page);
+    this.cdr.detectChanges();
   }
 
   selected(): TemplateStatResponse | null {
@@ -278,6 +283,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   exportDashboard(): void {
-    alert('Função de exportar ainda não implementada.');
+    this.messages.info('Função de exportar ainda não implementada.');
   }
 }

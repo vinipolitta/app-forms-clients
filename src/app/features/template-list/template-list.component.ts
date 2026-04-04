@@ -10,11 +10,13 @@ import {
 } from '../../core/services/form-template.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ExportService } from '../../core/services/export.service';
+import { MessageService } from '../../core/services/message.service';
 import { FormsModule } from '@angular/forms';
 import {
   PaginationComponent,
   SpringPage,
 } from '../../shared/components/pagination/pagination.component';
+import { FooterComponent } from '../../shared/components/footer/footer.component';
 
 interface FilterableField {
   col: string;
@@ -26,7 +28,7 @@ interface FilterableField {
 @Component({
   selector: 'app-template-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, FormsModule, RouterLink, PaginationComponent],
+  imports: [CommonModule, DatePipe, FormsModule, RouterLink, PaginationComponent, FooterComponent],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })
@@ -34,6 +36,7 @@ export class TemplateListComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private service = inject(FormTemplateService);
   private exporter = inject(ExportService);
+  private messages = inject(MessageService);
   public auth = inject(AuthService);
 
   readonly pageSizeOptions = [2, 5, 10, 50];
@@ -453,7 +456,7 @@ export class TemplateListComponent implements OnInit {
           this.markingId.set(null);
         },
         error: () => {
-          alert('Erro ao atualizar presença.');
+          this.messages.error('Erro ao atualizar presença.');
           this.markingId.set(null);
         },
       });
@@ -469,7 +472,7 @@ export class TemplateListComponent implements OnInit {
         next: (updated) => {
           this.attendance.update((list) => list.map((r) => (r.id === record.id ? updated : r)));
         },
-        error: () => alert('Erro ao salvar observação.'),
+        error: () => this.messages.error('Erro ao salvar observação.'),
       });
   }
 
@@ -502,7 +505,7 @@ export class TemplateListComponent implements OnInit {
         this.deletingId.set(null);
       },
       error: () => {
-        alert('Erro ao excluir resposta.');
+        this.messages.error('Erro ao excluir resposta.');
         this.deletingId.set(null);
       },
     });
@@ -517,7 +520,7 @@ export class TemplateListComponent implements OnInit {
         this.cancellingId.set(null);
       },
       error: () => {
-        alert('Erro ao cancelar agendamento.');
+        this.messages.error('Erro ao cancelar agendamento.');
         this.cancellingId.set(null);
       },
     });

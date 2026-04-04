@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import {
@@ -7,6 +7,7 @@ import {
   CreateFormTemplateRequest,
   AttendanceRecord,
 } from '../../core/services/form-template.service';
+import { MessageService } from '../../core/services/message.service';
 import { ClientService, Client } from '../../core/services/client.service';
 import { ExportService } from '../../core/services/export.service';
 import { ActivatedRoute, RouterModule } from '@angular/router';
@@ -34,6 +35,8 @@ export class CreateTemplateComponent implements OnInit {
   // Upload state: qual campo está fazendo upload e preview local
   uploadingField = signal<string | null>(null);
   imagePreviews: Record<string, string> = {};
+
+  private messages = inject(MessageService);
 
   readonly gradientPresets = [
     { label: 'Meia-noite', value: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)' },
@@ -84,7 +87,7 @@ export class CreateTemplateComponent implements OnInit {
       },
       error: () => {
         this.uploadingField.set(null);
-        alert('Erro ao enviar imagem. Tente novamente.');
+        this.messages.error('Erro ao enviar imagem. Tente novamente.');
         this.imagePreviews[field] = '';
         input.value = '';
         this.cdr.detectChanges();
@@ -444,7 +447,7 @@ export class CreateTemplateComponent implements OnInit {
         this.cdr.detectChanges();
       })
       .catch(() => {
-        alert('Arquivo inválido. Use .xlsx ou .xls');
+        this.messages.warning('Arquivo inválido. Use .xlsx ou .xls');
         this.pendingAttendanceFileName = '';
         this.pendingAttendanceRows = [];
         this.pendingAttendanceCols = [];
@@ -497,6 +500,7 @@ export class CreateTemplateComponent implements OnInit {
         this.template = res;
         this.slug = res.slug;
         this.loadTemplateToForm(res);
+        this.messages.success('Template criado com sucesso!');
 
         // Se tem lista pendente, importa logo após criar
         if (formValue.hasAttendance && this.pendingAttendanceRows.length > 0) {
@@ -510,14 +514,14 @@ export class CreateTemplateComponent implements OnInit {
                 this.cdr.detectChanges();
               },
               error: () => {
-                alert('Template criado, mas houve erro ao importar a lista de presença.');
+                this.messages.error('Template criado, mas houve erro ao importar a lista de presença.');
                 this.importingAttendance = false;
               },
             });
         }
       },
       error: (err) => {
-        alert(
+        this.messages.error(
           `Erro ao criar template (${err.status}): ${err.error?.message ?? 'Verifique o console'}`,
         );
       },
@@ -587,13 +591,13 @@ export class CreateTemplateComponent implements OnInit {
             this.cdr.detectChanges();
           },
           error: () => {
-            alert('Erro ao importar planilha.');
+            this.messages.error('Erro ao importar planilha.');
             this.importingAttendance = false;
           },
         });
       })
       .catch(() => {
-        alert('Arquivo inválido. Use .xlsx ou .xls');
+        this.messages.warning('Arquivo inválido. Use .xlsx ou .xls');
         this.importingAttendance = false;
       });
 

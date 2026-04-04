@@ -34,7 +34,7 @@ export class FormsAllComponent implements OnInit {
   loading = signal(true);
 
   page = signal(0);
-  readonly size = 12;
+  readonly size = 10;
   totalPages = signal(0);
   totalElements = signal(0);
 
@@ -200,5 +200,21 @@ export class FormsAllComponent implements OnInit {
   goToPage(n: number): void {
     this.page.set(n);
     this.loadTemplates();
+  }
+
+  deleteTemplate(id: number, $event: Event): void {
+    if (confirm('Tem certeza que deseja excluir este formulário? Esta ação não pode ser desfeita.')) {
+      console.log("ID DO CARD", id);
+      console.log("EVENTO DO CARD", $event);
+      
+      // this.service.deleteTemplate(id).subscribe({
+      //   next: () => {
+      //     this.loadTemplates();
+      //   },
+      //   error: (err) => {
+      //     console.error('Erro ao excluir formulário:', err);
+      //   }
+      // });
+    }
   }
 }

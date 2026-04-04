@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ClientService } from '../../../core/services/client.service';
+import { MessageService } from '../../../core/services/message.service';
 
 export interface CreateClientRequest {
   name: string;
@@ -21,6 +22,7 @@ export interface CreateClientRequest {
 export class CreateClientComponent {
   private service = inject(ClientService);
   private router = inject(Router);
+  private messages = inject(MessageService);
 
   loading = signal(false);
 
@@ -64,11 +66,11 @@ export class CreateClientComponent {
 
     this.service.create(this.form()).subscribe({
       next: () => {
-        alert('Cliente criado com sucesso 🚀');
+        this.messages.success('Cliente criado com sucesso 🚀');
         this.router.navigate(['/clients']);
       },
       error: () => {
-        alert('Erro ao criar cliente');
+        this.messages.error('Erro ao criar cliente');
         this.loading.set(false);
       },
     });
