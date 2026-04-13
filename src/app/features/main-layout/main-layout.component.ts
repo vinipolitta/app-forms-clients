@@ -2,15 +2,15 @@ import { Component, inject } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
 import { RouterOutlet } from '@angular/router';
 import { HeaderComponent } from '../../shared/components/header/header.component';
+import { FooterComponent } from '../../shared/components/footer/footer.component';
 
 @Component({
   standalone: true,
-  imports: [HeaderComponent, RouterOutlet],
-  templateUrl: './main-layout.component.html'
+  imports: [HeaderComponent, RouterOutlet, FooterComponent],
+  templateUrl: './main-layout.component.html',
 })
 export class MainLayoutComponent {
-
- auth = inject(AuthService);
+  auth = inject(AuthService);
 
   user = this.auth.user;
 

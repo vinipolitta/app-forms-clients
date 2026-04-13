@@ -1,41 +1,80 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { FormTemplateService, FormTemplate, AppointmentResponse, FormSubmission, AttendanceRecord } from '../../core/services/form-template.service';
+import { DashboardService, DashboardSummary, TemplateStatResponse } from '../../core/services/dashboard.service';
+import { FormTemplateService } from '../../core/services/form-template.service';
+import { MessageService } from '../../core/services/message.service';
 import { AuthService } from '../../core/services/auth.service';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { DatePipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import {
+  PaginationComponent,
+  SpringPage,
+} from '../../shared/components/pagination/pagination.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { PageShellComponent } from '../../shared/components/page-shell/page-shell.component';
+import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component';
 
 @Component({
   selector: 'app-forms-all',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    PaginationComponent,
+    PageShellComponent,
+    PageHeaderComponent,
+    ConfirmModalComponent,
+  ],
   templateUrl: './forms-all.component.html',
-  styleUrls: ['./forms-all.component.scss']
+  styleUrls: ['./forms-all.component.scss'],
 })
 export class FormsAllComponent implements OnInit {
-
-  private service = inject(FormTemplateService);
+  private dashboardService = inject(DashboardService);
+  private templateService = inject(FormTemplateService);
+  private messages = inject(MessageService);
   private auth = inject(AuthService);
 
-  templates = signal<FormTemplate[]>([]);
-  appointmentsMap = signal<{ [templateId: number]: AppointmentResponse[] }>({});
-  submissionsMap = signal<{ [templateId: number]: FormSubmission[] }>({});
-  attendanceMap = signal<{ [templateId: number]: AttendanceRecord[] }>({});
+  isAdmin = computed(() => this.auth.isAdmin());
+
+  templates = signal<TemplateStatResponse[]>([]);
   loading = signal(true);
 
+  searchQuery = signal('');
+
+  filteredTemplates = computed(() => {
+    const q = this.searchQuery().toLowerCase().trim();
+    if (!q) return this.templates();
+    return this.templates().filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.clientName ?? '').toLowerCase().includes(q),
+    );
+  });
+
   page = signal(0);
-  readonly size = 12;
+  readonly size = 10;
+  readonly searchSize = 500;
   totalPages = signal(0);
   totalElements = signal(0);
+  summary = signal<DashboardSummary | null>(null);
 
-  totalAppointments = computed(() =>
-    Object.values(this.appointmentsMap()).reduce((acc, list) => acc + list.length, 0)
-  );
+  // ── Modal de confirmação ──
+  deleteModalOpen = signal(false);
+  deleteTargetId = signal<number | null>(null);
+  deleteTargetName = signal('');
+  deleting = signal(false);
 
-  templatesWithAppointments = computed(() =>
-    Object.values(this.appointmentsMap()).filter(list => list.length > 0).length
-  );
+  globalScheduleCount = computed(() => this.summary()?.appointmentTemplateCount ?? 0);
+  globalAttendanceCount = computed(() => this.summary()?.attendanceTemplateCount ?? 0);
+  globalFormCount = computed(() => this.summary()?.formTemplateCount ?? 0);
+
+  templatesPagination = computed<SpringPage>(() => ({
+    page: this.page(),
+    size: this.size,
+    totalElements: this.totalElements(),
+    totalPages: this.totalPages(),
+  }));
 
   ngOnInit(): void {
     this.loadTemplates();
@@ -43,75 +82,80 @@ export class FormsAllComponent implements OnInit {
 
   loadTemplates(): void {
     this.loading.set(true);
+    const isSearching = !!this.searchQuery().trim();
+    const size = isSearching ? this.searchSize : this.size;
+    const page = isSearching ? 0 : this.page();
 
-    const role = this.auth.role();
-
-    const request$ = role === 'ROLE_ADMIN'
-      ? this.service.getAllTemplates(this.page(), this.size)
-      : this.service.getMyTemplates(this.page(), this.size);
-
-    request$.subscribe({
-      next: (pageRes) => {
-        const templates = pageRes.content;
-        this.templates.set(templates);
-        this.totalPages.set(pageRes.totalPages);
-        this.totalElements.set(pageRes.totalElements);
-
-        if (templates.length === 0) {
-          this.loading.set(false);
-          return;
-        }
-
-        // Busca appointments, submissions e attendance para preview no card
-        const calls = templates.map(t =>
-          forkJoin({
-            appointments: this.service.getAppointmentsByTemplate(t.id, 0, 5).pipe(map(p => p.content)),
-            submissions: this.service.getSubmissionsByTemplate(t.id, 0, 5).pipe(map(p => p.content)),
-            attendance: this.service.getAttendance(t.id, 0, 10).pipe(map(p => p.content))
-          })
-        );
-
-        forkJoin(calls).subscribe({
-          next: (results) => {
-            const appMap: { [key: number]: AppointmentResponse[] } = {};
-            const subMap: { [key: number]: FormSubmission[] } = {};
-            const attMap: { [key: number]: AttendanceRecord[] } = {};
-
-            templates.forEach((t, index) => {
-              appMap[t.id] = results[index].appointments;
-              subMap[t.id] = results[index].submissions;
-              attMap[t.id] = results[index].attendance;
-            });
-
-            this.appointmentsMap.set(appMap);
-            this.submissionsMap.set(subMap);
-            this.attendanceMap.set(attMap);
-            this.loading.set(false);
-          },
-          error: (err) => {
-            console.error('Erro ao buscar dados:', err);
-            this.loading.set(false);
-          }
-        });
+    this.dashboardService.getSummary(page, size).subscribe({
+      next: (summary) => {
+        this.summary.set(summary);
+        this.templates.set(summary.templates ?? []);
+        this.totalPages.set(summary.totalPages);
+        this.totalElements.set(summary.totalElements);
+        this.loading.set(false);
       },
       error: (err) => {
-        console.error('Erro ao buscar templates:', err);
+        console.error('Erro ao carregar formulários:', err);
         this.loading.set(false);
-      }
+      },
     });
   }
 
-  nextPage() {
-    if (this.page() < this.totalPages() - 1) {
-      this.page.update(p => p + 1);
-      this.loadTemplates();
-    }
+  onSearchChange(query: string): void {
+    this.searchQuery.set(query);
+    this.page.set(0);
+    this.loadTemplates();
   }
 
-  prevPage() {
-    if (this.page() > 0) {
-      this.page.update(p => p - 1);
-      this.loadTemplates();
-    }
+  clearSearch(): void {
+    this.searchQuery.set('');
+    this.page.set(0);
+    this.loadTemplates();
+  }
+
+  isAttendanceCard(template: TemplateStatResponse): boolean {
+    return !template.hasSchedule && template.attendanceTotal > 0;
+  }
+
+  isFormCard(template: TemplateStatResponse): boolean {
+    return !template.hasSchedule && template.attendanceTotal === 0;
+  }
+
+  goToPage(n: number): void {
+    this.page.set(n);
+    this.loadTemplates();
+  }
+
+  deleteTemplate(id: number, name: string, event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.deleteTargetId.set(id);
+    this.deleteTargetName.set(name);
+    this.deleteModalOpen.set(true);
+  }
+
+  onDeleteConfirmed(): void {
+    const id = this.deleteTargetId();
+    if (id === null) return;
+
+    this.deleting.set(true);
+    this.templateService.deleteTemplate(id).subscribe({
+      next: () => {
+        this.messages.success('Formulário excluído com sucesso');
+        this.deleteModalOpen.set(false);
+        this.deleting.set(false);
+        this.loadTemplates();
+      },
+      error: () => {
+        this.messages.error('Erro ao excluir formulário');
+        this.deleting.set(false);
+      },
+    });
+  }
+
+  onDeleteCancelled(): void {
+    this.deleteModalOpen.set(false);
+    this.deleteTargetId.set(null);
+    this.deleteTargetName.set('');
   }
 }

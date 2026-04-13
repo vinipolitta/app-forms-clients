@@ -1,0 +1,54 @@
+name: CI — Homologação (develop)
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build:
+    name: Build & Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production)
+        run: npx ng build --configuration=production
+
+
+  open-pr-to-master:
+    name: Open PR → master
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Open PR to master (if not exists)
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          EXISTING=$(gh pr list --head develop --base master --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already exists for develop → master. Skipping."
+          else
+            gh pr create \
+              --title "release: develop → master" \
+              --body "Build validado — pronto para deploy na Vercel." \
+              --head develop \
+              --base master
+          fi

@@ -1,54 +1,314 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { DashboardService, DashboardSummary } from '../../core/services/dashboard.service';
-import { ExportService } from '../../core/services/export.service';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ViewChild,
+  ElementRef,
+  signal,
+  inject,
+  computed,
+  ChangeDetectorRef,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Subject, takeUntil } from 'rxjs';
+import {
+  Chart,
+  ChartConfiguration,
+  BarController,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import {
+  DashboardService,
+  DashboardSummary,
+  TemplateStatResponse,
+} from '../../core/services/dashboard.service';
+import { MessageService } from '../../core/services/message.service';
+import {
+  PaginationComponent,
+  SpringPage,
+} from '../../shared/components/pagination/pagination.component';
+import {
+  DataTableComponent,
+  DataTableColumn,
+} from '../../shared/components/data-table/data-table.component';
+
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+
+type KpiType = 'formulario' | 'agendamento' | 'lista-presenca';
+
+export interface KpiCard {
+  type: KpiType;
+  label: string;
+  totalTemplates: number;
+  submissoes: number;
+  agendamentos: number;
+  confirmados: number;
+  presencaTotal: number;
+  presencaPresente: number;
+  presencaPercent: number;
+}
 
 @Component({
-  standalone: true,
-  imports: [CommonModule, RouterLink],
   selector: 'app-home',
+  imports: [CommonModule, FormsModule, PaginationComponent, DataTableComponent],
   templateUrl: './home.component.html',
-  styleUrls: ['./home.component.scss']
+  styleUrls: ['./home.component.scss'],
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
+  private _chartCanvas?: ElementRef<HTMLCanvasElement>;
 
-  private dashboardService = inject(DashboardService);
-  private exportService = inject(ExportService);
+  @ViewChild('chartCanvas')
+  set chartCanvas(el: ElementRef<HTMLCanvasElement>) {
+    this._chartCanvas = el;
+    if (el) {
+      this.renderChart();
+    }
+  }
 
-  summary = signal<DashboardSummary | null>(null);
-  loading = signal(true);
+  templates: TemplateStatResponse[] = [];
+  summary: DashboardSummary | null = null;
+  loadingData = false;
 
-  attendanceRate = computed(() => {
-    const s = this.summary();
-    if (!s || s.totalAttendanceRecords === 0) return 0;
-    return Math.round((s.presentAttendanceRecords / s.totalAttendanceRecords) * 100);
-  });
+  homeColumns: DataTableColumn[] = [
+    { key: 'clientName', label: 'Cliente' },
+    { key: 'name', label: 'Nome' },
+    { key: 'type', label: 'Tipo' },
+    { key: 'submissionCount', label: 'Submissões' },
+    { key: 'total', label: 'Total' },
+    { key: 'confirmedOrPresent', label: 'Confirmados / Presentes' },
+    { key: 'presence', label: 'Presença' },
+  ];
 
-  confirmRate = computed(() => {
-    const s = this.summary();
-    if (!s || s.totalAppointments === 0) return 0;
-    return Math.round((s.confirmedAppointments / s.totalAppointments) * 100);
-  });
+  search = signal('');
+  typeFilter = signal<'all' | 'formulario' | 'agendamento' | 'lista-presenca'>('all');
 
-  ngOnInit() {
-    this.dashboardService.getSummary().subscribe({
-      next: (data) => {
-        this.summary.set(data);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false)
+  filteredTemplates = computed(() => {
+    const search = this.search().toLowerCase().trim();
+    return this.templates.filter((t) => {
+      const type = this.inferType(t);
+      const matchesType = this.typeFilter() === 'all' || type === this.typeFilter();
+      if (!matchesType) return false;
+      if (!search) return true;
+      return (
+        t.clientName?.toLowerCase().includes(search) ||
+        t.name.toLowerCase().includes(search) ||
+        type.toLowerCase().includes(search) ||
+        String(t.submissionCount).includes(search) ||
+        String(t.appointmentTotal).includes(search) ||
+        String(t.attendanceTotal ?? '').includes(search)
+      );
     });
+  });
+
+  readonly pageSize = 5;
+  pagination: SpringPage = { page: 0, size: this.pageSize, totalElements: 0, totalPages: 0 };
+
+  private _selected = signal<TemplateStatResponse | null>(null);
+  private chart: Chart | null = null;
+  private destroy$ = new Subject<void>();
+
+  private messages = inject(MessageService);
+
+  constructor(
+    private dashboardService: DashboardService,
+    private cdr: ChangeDetectorRef,
+  ) {}
+
+  ngOnInit(): void {
+    this.loadData();
   }
 
-  exportDashboard() {
-    const s = this.summary();
-    if (!s) return;
-    this.exportService.exportDashboard(s);
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.chart?.destroy();
   }
 
-  attendancePercent(t: { attendanceTotal: number; attendancePresent: number }): number {
-    if (!t.attendanceTotal) return 0;
-    return Math.round((t.attendancePresent / t.attendanceTotal) * 100);
+  loadData(page = this.pagination.page): void {
+    this.loadingData = true;
+    this.dashboardService
+      .getSummary(page, this.pagination.size)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.summary = data;
+          this.templates = data.templates;
+          this.pagination = {
+            page: data.page,
+            size: data.size,
+            totalElements: data.totalElements,
+            totalPages: data.totalPages,
+          };
+          this.loadingData = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.loadingData = false;
+        },
+      });
+  }
+
+  onPageChange(page: number): void {
+    this._selected.set(null);
+    this.loadData(page);
+    this.cdr.detectChanges();
+  }
+
+  clearHomeFilters(): void {
+    this.search.set('');
+    this.typeFilter.set('all');
+  }
+
+  selected(): TemplateStatResponse | null {
+    return this._selected();
+  }
+
+  selectTemplate(t: TemplateStatResponse): void {
+    this._selected.set(t);
+    this.renderChart();
+  }
+
+  homeRowClass = (t: TemplateStatResponse) => ({
+    active: this.selected()?.id === t.id,
+  });
+
+  showAll(): void {
+    this._selected.set(null);
+    this.renderChart();
+  }
+
+  // Infere o tipo do template a partir dos campos do backend
+  inferType(t: TemplateStatResponse): KpiType {
+    if (t.hasSchedule) return 'agendamento';
+    if ((t.attendanceTotal ?? 0) > 0) return 'lista-presenca';
+    return 'formulario';
+  }
+
+  attendancePercent(t: TemplateStatResponse): number {
+    const type = this.inferType(t);
+    if (type === 'agendamento') {
+      return t.appointmentTotal ? (t.appointmentConfirmed / t.appointmentTotal) * 100 : 0;
+    }
+    if (type === 'lista-presenca') {
+      return t.attendanceTotal ? (t.attendancePresent / t.attendanceTotal) * 100 : 0;
+    }
+    return 0;
+  }
+
+  kpiCards(): KpiCard[] {
+    if (!this.summary) return [];
+
+    return [
+      {
+        type: 'formulario',
+        label: 'Formulários',
+        totalTemplates: this.summary.formTemplateCount,
+        submissoes: this.summary.globalTotalSubmissions,
+        agendamentos: 0,
+        confirmados: 0,
+        presencaTotal: 0,
+        presencaPresente: 0,
+        presencaPercent: 0,
+      },
+      {
+        type: 'agendamento',
+        label: 'Agendamentos',
+        totalTemplates: this.summary.appointmentTemplateCount,
+        submissoes: 0,
+        agendamentos: this.summary.globalTotalAppointments,
+        confirmados: this.summary.globalConfirmedAppointments,
+        presencaTotal: 0,
+        presencaPresente: 0,
+        presencaPercent: this.summary.globalTotalAppointments
+          ? (this.summary.globalConfirmedAppointments / this.summary.globalTotalAppointments) * 100
+          : 0,
+      },
+      {
+        type: 'lista-presenca',
+        label: 'Lista de Presença',
+        totalTemplates: this.summary.attendanceTemplateCount,
+        submissoes: 0,
+        agendamentos: 0,
+        confirmados: 0,
+        presencaTotal: this.summary.globalTotalAttendanceRecords,
+        presencaPresente: this.summary.globalPresentAttendanceRecords,
+        presencaPercent: this.summary.globalTotalAttendanceRecords
+          ? (this.summary.globalPresentAttendanceRecords / this.summary.globalTotalAttendanceRecords) * 100
+          : 0,
+      },
+    ];
+  }
+
+  templateCard(t: TemplateStatResponse): KpiCard {
+    const type = this.inferType(t);
+    return {
+      type,
+      label: t.name,
+      totalTemplates: 1,
+      submissoes: t.submissionCount,
+      agendamentos: t.appointmentTotal,
+      confirmados: t.appointmentConfirmed,
+      presencaTotal: t.attendanceTotal ?? 0,
+      presencaPresente: t.attendancePresent ?? 0,
+      presencaPercent: this.attendancePercent(t),
+    };
+  }
+
+  renderChart(): void {
+    const canvas = this._chartCanvas?.nativeElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
+    }
+
+    const sel = this.selected();
+    const cards = this.kpiCards();
+
+    const labels = sel
+      ? ['Submissões', 'Agendamentos', 'Confirmados', 'Presença (%)']
+      : cards.map((c) => c.label);
+
+    const data = sel
+      ? [
+          sel.submissionCount,
+          sel.appointmentTotal,
+          sel.appointmentConfirmed,
+          this.attendancePercent(sel),
+        ]
+      : cards.map((c) => c.totalTemplates);
+
+    const config: ChartConfiguration = {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: sel ? sel.name : 'Templates por tipo',
+            data,
+            backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b'],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } },
+      },
+    };
+
+    this.chart = new Chart(ctx, config);
+  }
+
+  exportDashboard(): void {
+    this.messages.info('Função de exportar ainda não implementada.');
   }
 }

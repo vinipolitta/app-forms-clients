@@ -1,21 +1,58 @@
 // src/app/core/services/form-template.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, tap } from 'rxjs';
 import { PageResponse } from '../models/page-response.model';
+import { environment } from '../../../environments/environment';
+
+export interface TemplateAppearance {
+  backgroundColor?: string;
+  backgroundGradient?: string;
+  backgroundImageUrl?: string;
+  headerImageUrl?: string;
+  footerImageUrl?: string;
+  primaryColor?: string;
+  formTextColor?: string;
+  fieldBackgroundColor?: string;
+  fieldTextColor?: string;
+  /** Cor de fundo dos cards, tabelas e área de filtros */
+  cardBackgroundColor?: string;
+  /** Cor da borda dos cards e tabelas */
+  cardBorderColor?: string;
+  /** Tamanho da fonte do título do formulário (ex: "18px") */
+  titleFontSize?: string;
+  /** Tamanho da fonte dos labels dos campos (ex: "13px") */
+  labelFontSize?: string;
+  /** Tamanho da fonte do botão de envio (ex: "13px") */
+  buttonFontSize?: string;
+  /** Família tipográfica (ex: "Poppins") — carregada do Google Fonts */
+  fontFamily?: string;
+}
 
 export interface FormField {
   label: string;
   type: string;
   id: number;
   required: boolean;
+  fieldColor?: string;
+  /** 2 = largura total, 1 = meia largura */
+  colSpan?: number;
+  /** Opções disponíveis para campos do tipo select */
+  options?: string[];
 }
 
 export interface ScheduleConfig {
-  startTime: string;   // "HH:mm:ss"
+  startTime: string; // "HH:mm:ss"
   endTime: string;
   slotDurationMinutes: number;
   maxDaysAhead: number;
+  slotCapacity: number;
+  /**
+   * Campos usados como chave de deduplicação.
+   * Array vazio = múltiplos agendamentos permitidos.
+   * Ex: ["CPF"] ou ["Nome", "CPF"]
+   */
+  dedupFields: string[];
 }
 
 export interface FormTemplate {
@@ -23,9 +60,12 @@ export interface FormTemplate {
   name: string;
   slug: string;
   clientName: string;
+  clientCompany?: string;
   fields: FormField[];
   hasSchedule: boolean;
+  hasAttendance: boolean;
   scheduleConfig: ScheduleConfig | null;
+  appearance?: TemplateAppearance | null;
 }
 
 export interface CreateFormTemplateRequest {
@@ -33,6 +73,13 @@ export interface CreateFormTemplateRequest {
   clientId: number;
   fields: Omit<FormField, 'id'>[];
   scheduleConfig?: ScheduleConfig | null;
+  appearance?: TemplateAppearance | null;
+}
+
+export interface UpdateFormTemplateRequest {
+  name: string;
+  fields: { label: string; type: string; required: boolean; fieldColor?: string; colSpan: number; options?: string[] }[];
+  appearance?: Partial<TemplateAppearance> | null;
 }
 
 export interface FormSubmission {
@@ -50,19 +97,21 @@ export interface CreateFormSubmissionRequest {
 // ===== AGENDAMENTO =====
 
 export interface SlotInfo {
-  time: string;      // "HH:mm:ss"
+  time: string; // "HH:mm:ss"
   available: boolean;
+  bookedCount: number;
+  capacity: number;
 }
 
 export interface AvailableSlotsResponse {
-  date: string;      // "YYYY-MM-DD"
+  date: string; // "YYYY-MM-DD"
   slots: SlotInfo[];
 }
 
 export interface BookAppointmentRequest {
   templateId: number;
-  slotDate: string;         // "YYYY-MM-DD"
-  slotTime: string;         // "HH:mm:ss"
+  slotDate: string; // "YYYY-MM-DD"
+  slotTime: string; // "HH:mm:ss"
   bookedByName: string;
   bookedByContact: string;
   extraValues: { [key: string]: string };
@@ -107,12 +156,28 @@ export interface AppointmentResponse {
 
 @Injectable({ providedIn: 'root' })
 export class FormTemplateService {
+  private apiUrl = `${environment.apiUrl}/form-templates`;
+  private submissionsUrl = `${environment.apiUrl}/form-submissions`;
+  private appointmentsUrl = `${environment.apiUrl}/appointments`;
+  private attendanceUrl = `${environment.apiUrl}/attendance`;
 
-  private apiUrl = 'http://localhost:8080/form-templates';
-  private submissionsUrl = 'http://localhost:8080/form-submissions';
-  private appointmentsUrl = 'http://localhost:8080/appointments';
+  private uploadsUrl = `${environment.apiUrl}/uploads`;
 
   constructor(private http: HttpClient) {}
+
+  // ================= IMAGE UPLOAD =================
+
+  uploadImage(file: File): Observable<{ url: string }> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<{ url: string }>(`${this.uploadsUrl}/image`, form);
+  }
+
+  deleteImage(url: string): Observable<void> {
+    return this.http.delete<void>(`${this.uploadsUrl}/image`, {
+      body: { url },
+    });
+  }
 
   // ================= TEMPLATES =================
 
@@ -120,14 +185,25 @@ export class FormTemplateService {
     return this.http.post<FormTemplate>(`${this.apiUrl}/create/${clientId}`, payload);
   }
 
+  updateTemplate(id: number, payload: UpdateFormTemplateRequest): Observable<FormTemplate> {
+    return this.http.put<FormTemplate>(`${this.apiUrl}/${id}`, payload);
+  }
+
+  updateScheduleConfig(templateId: number, config: ScheduleConfig): Observable<FormTemplate> {
+    return this.http.patch<FormTemplate>(`${this.apiUrl}/${templateId}/schedule-config`, config);
+  }
+
+  deleteTemplate(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
   getAllTemplates(page = 0, size = 20): Observable<PageResponse<FormTemplate>> {
     return this.http.get<PageResponse<FormTemplate>>(`${this.apiUrl}?page=${page}&size=${size}`);
   }
 
   getMyTemplates(page = 0, size = 20): Observable<PageResponse<FormTemplate>> {
-    return this.http.get<PageResponse<FormTemplate>>(`${this.apiUrl}/my-templates?page=${page}&size=${size}`).pipe(
-      tap(res => console.log("TEMPLATES DO USUÁRIO:", res))
-    );
+    return this.http
+      .get<PageResponse<FormTemplate>>(`${this.apiUrl}/my-templates?page=${page}&size=${size}`)
   }
 
   getTemplateBySlug(slug: string): Observable<FormTemplate> {
@@ -140,9 +216,13 @@ export class FormTemplateService {
     return this.http.post<FormSubmission>(this.submissionsUrl, payload);
   }
 
-  getSubmissionsByTemplate(templateId: number, page = 0, size = 500): Observable<PageResponse<FormSubmission>> {
+  getSubmissionsByTemplate(
+    templateId: number,
+    page = 0,
+    size = 500,
+  ): Observable<PageResponse<FormSubmission>> {
     return this.http.get<PageResponse<FormSubmission>>(
-      `${this.submissionsUrl}/template/${templateId}?page=${page}&size=${size}`
+      `${this.submissionsUrl}/template/${templateId}?page=${page}&size=${size}`,
     );
   }
 
@@ -154,13 +234,17 @@ export class FormTemplateService {
 
   getAvailableSlots(templateId: number, date: string): Observable<AvailableSlotsResponse> {
     return this.http.get<AvailableSlotsResponse>(
-      `${this.appointmentsUrl}/template/${templateId}/slots?date=${date}`
+      `${this.appointmentsUrl}/template/${templateId}/slots?date=${date}`,
     );
   }
 
-  getAvailableSlotsRange(templateId: number, from: string, to: string): Observable<AvailableSlotsResponse[]> {
+  getAvailableSlotsRange(
+    templateId: number,
+    from: string,
+    to: string,
+  ): Observable<AvailableSlotsResponse[]> {
     return this.http.get<AvailableSlotsResponse[]>(
-      `${this.appointmentsUrl}/template/${templateId}/slots/range?from=${from}&to=${to}`
+      `${this.appointmentsUrl}/template/${templateId}/slots/range?from=${from}&to=${to}`,
     );
   }
 
@@ -169,46 +253,68 @@ export class FormTemplateService {
   }
 
   cancelAppointment(appointmentId: number): Observable<AppointmentResponse> {
-    return this.http.patch<AppointmentResponse>(`${this.appointmentsUrl}/${appointmentId}/cancel`, {});
+    return this.http.patch<AppointmentResponse>(
+      `${this.appointmentsUrl}/${appointmentId}/cancel`,
+      {},
+    );
   }
 
   deleteSubmission(submissionId: number): Observable<void> {
     return this.http.delete<void>(`${this.submissionsUrl}/${submissionId}`);
   }
 
-  getAppointmentsByTemplate(templateId: number, page = 0, size = 500): Observable<PageResponse<AppointmentResponse>> {
+  getAppointmentsByTemplate(
+    templateId: number,
+    page = 0,
+    size = 500,
+  ): Observable<PageResponse<AppointmentResponse>> {
     return this.http.get<PageResponse<AppointmentResponse>>(
-      `${this.appointmentsUrl}/template/${templateId}?page=${page}&size=${size}`
+      `${this.appointmentsUrl}/template/${templateId}?page=${page}&size=${size}`,
     );
   }
 
   // ================= ATTENDANCE =================
 
-  importAttendance(templateId: number, payload: ImportAttendanceRequest): Observable<AttendanceRecord[]> {
+  importAttendance(
+    templateId: number,
+    payload: ImportAttendanceRequest,
+  ): Observable<AttendanceRecord[]> {
     return this.http.post<AttendanceRecord[]>(
-      `http://localhost:8080/attendance/template/${templateId}/import`, payload
+      `${this.attendanceUrl}/template/${templateId}/import`,
+      payload,
     );
   }
 
-  getAttendance(templateId: number, page = 0, size = 500): Observable<PageResponse<AttendanceRecord>> {
+  getAttendance(
+    templateId: number,
+    page = 0,
+    size = 500,
+  ): Observable<PageResponse<AttendanceRecord>> {
     return this.http.get<PageResponse<AttendanceRecord>>(
-      `http://localhost:8080/attendance/template/${templateId}?page=${page}&size=${size}`
+      `${this.attendanceUrl}/template/${templateId}?page=${page}&size=${size}`,
     );
+  }
+
+  getAttendanceExistence(templateIds: number[]): Observable<Record<number, boolean>> {
+    const params = new HttpParams();
+    const queryParams = templateIds.reduce((acc, id) => acc.append('templateIds', String(id)), params);
+    return this.http.get<Record<number, boolean>>(`${this.attendanceUrl}/template/existence`, {
+      params: queryParams,
+    });
   }
 
   markAttendance(recordId: number, payload: MarkAttendanceRequest): Observable<AttendanceRecord> {
-    return this.http.patch<AttendanceRecord>(
-      `http://localhost:8080/attendance/${recordId}/mark`, payload
-    );
+    return this.http.patch<AttendanceRecord>(`${this.attendanceUrl}/${recordId}/mark`, payload);
   }
 
-  updateAttendanceRowData(recordId: number, rowData: { [key: string]: string }): Observable<AttendanceRecord> {
-    return this.http.patch<AttendanceRecord>(
-      `http://localhost:8080/attendance/${recordId}/data`, rowData
-    );
+  updateAttendanceRowData(
+    recordId: number,
+    rowData: { [key: string]: string },
+  ): Observable<AttendanceRecord> {
+    return this.http.patch<AttendanceRecord>(`${this.attendanceUrl}/${recordId}/data`, rowData);
   }
 
   deleteAttendanceRecord(recordId: number): Observable<void> {
-    return this.http.delete<void>(`http://localhost:8080/attendance/${recordId}`);
+    return this.http.delete<void>(`${this.attendanceUrl}/${recordId}`);
   }
 }

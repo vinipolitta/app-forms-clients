@@ -1,77 +1,105 @@
-<div class="page" style="max-width: 680px;">
+<div class="create-client-page">
 
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">Novo cliente</h1>
-      <p class="page-subtitle">Preencha os dados para cadastrar um novo cliente</p>
+  <!-- Decorative background blobs -->
+  <div class="page-blob page-blob--primary" aria-hidden="true"></div>
+  <div class="page-blob page-blob--violet" aria-hidden="true"></div>
+
+  <div class="form-container">
+
+    <!-- Intro hero -->
+    <div class="form-hero">
+      <div class="form-hero__icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+          <line x1="16" y1="11" x2="22" y2="11" />
+          <line x1="19" y1="8" x2="19" y2="14" />
+        </svg>
+      </div>
+      <div class="form-hero__text">
+        <h1 class="form-hero__title">Novo cliente</h1>
+        <p class="form-hero__subtitle">Preencha os campos abaixo para cadastrar um novo cliente no sistema</p>
+      </div>
+      <button type="button" class="btn-outline form-hero__back" (click)="redirectToList()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 5l-7 7 7 7" />
+        </svg>
+        <span class="form-hero__back-label">Voltar</span>
+      </button>
     </div>
-    <button type="button" class="btn-outline" (click)="redirectToList()">← Voltar</button>
-  </div>
 
-  <div class="card">
-    <div class="section-header">
-      <h2 class="section-title">Dados do cliente</h2>
-    </div>
-    <div class="section-body">
+    <!-- Required hint -->
+    <p class="required-hint">
+      <span class="required">*</span> Campos obrigatórios
+    </p>
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
 
-      <form (ngSubmit)="submit()">
-        <div class="fields-grid">
+      <!-- ===============================
+       Dados pessoais
+       =============================== -->
+      <div class="form-card form-card--blue">
+        <div class="form-card__body fields-grid">
 
-          <div class="field">
-            <label>Nome completo <span class="required">*</span></label>
-            <input [(ngModel)]="form().name" name="name" placeholder="Ex: João Silva">
-            @if (errors().name) {
-              <span class="field-error">{{ errors().name }}</span>
-            }
-          </div>
+          <!-- Nome completo -->
+          <!-- Campo obrigatório, usado para identificar o cliente -->
+          <app-form-field [control]="nameControl" label="Nome completo" id="name" placeholder="Ex: João Silva">
+          </app-form-field>
 
-          <div class="field">
-            <label>Email <span class="required">*</span></label>
-            <input [(ngModel)]="form().email" name="email" type="email" placeholder="email@empresa.com">
-            @if (errors().email) {
-              <span class="field-error">{{ errors().email }}</span>
-            }
-          </div>
+          <app-form-field [control]="usernameControl" label="Username" id="username" placeholder="nome.sobrenome">
+          </app-form-field>
 
-          <div class="field">
-            <label>Username <span class="required">*</span></label>
-            <input [(ngModel)]="form().username" name="username" placeholder="nome.sobrenome">
-            @if (errors().username) {
-              <span class="field-error">{{ errors().username }}</span>
-            }
-          </div>
+          <app-form-field [control]="emailControl" label="Email" id="email" placeholder="email@empresa.com" type="email">
+          </app-form-field>
+        </div>
+      </div>
 
-          <div class="field">
-            <label>Telefone</label>
-            <input [(ngModel)]="form().phone" name="phone" placeholder="(11) 90000-0000">
-          </div>
+      <!-- ===============================
+       Contato & Empresa
+       =============================== -->
+      <div class="form-card form-card--violet">
+        <div class="form-card__body fields-grid">
 
-          <div class="field" style="grid-column: 1 / -1;">
-            <label>Empresa</label>
-            <input [(ngModel)]="form().company" name="company" placeholder="Nome da empresa">
-          </div>
+          <!-- Telefone -->
+          <!-- Campo opcional, formato sugerido (11) 90000-0000 -->
+          <app-form-field [control]="phoneControl" label="Telefone" id="phone" placeholder="(11) 90000-0000">
+          </app-form-field>
 
-          <div class="field" style="grid-column: 1 / -1;">
-            <label>Observações</label>
-            <textarea [(ngModel)]="form().notes" name="notes" rows="3" placeholder="Informações adicionais..."></textarea>
+          <app-form-field [control]="companyControl" label="Empresa" id="company" placeholder="Nome da empresa" [required]="true">
+          </app-form-field>
+
+          <!-- Observações -->
+          <!-- Campo opcional, textarea para informações adicionais -->
+          <div class="field field--full">
+            <label for="notes">Observações</label>
+            <textarea id="notes" [formControl]="notesControl" rows="3"
+              placeholder="Informações adicionais sobre o cliente...">
+        </textarea>
           </div>
 
         </div>
+      </div>
 
-        <div class="form-footer">
-          <button type="submit" class="btn-primary" [disabled]="loading()">
-            @if (loading()) {
-              <div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>
-              Criando...
-            } @else {
-              Criar cliente
-            }
-          </button>
-        </div>
+      <!-- ===============================
+       Ações
+       =============================== -->
+      <div class="form-actions">
+        <!-- Botão para voltar à lista de clientes -->
+        <button type="button" class="btn-outline" (click)="redirectToList()">Cancelar</button>
 
-      </form>
+        <!-- Botão de submit, desabilitado enquanto carrega -->
+        <button type="submit" class="btn-primary" [disabled]="loading">
+          <ng-container *ngIf="loading; else notLoading">
+            <div class="spinner" style="width: 15px; height: 15px; border-width: 2px"></div>
+            Criando...
+          </ng-container>
+          <ng-template #notLoading>
+            Criar cliente
+          </ng-template>
+        </button>
+      </div>
 
-    </div>
+    </form>
   </div>
-
 </div>

@@ -1,80 +1,81 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ClientService } from '../../../core/services/client.service';
-
-export interface CreateClientRequest {
-  name: string;
-  email: string;
-  phone?: string;
-  company?: string;
-  notes?: string;
-  username: string;
-}
+import { MessageService } from '../../../core/services/message.service';
+import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './create-client.component.html'
+  imports: [CommonModule, ReactiveFormsModule, FormFieldComponent],
+  templateUrl: './create-client.component.html',
+  styleUrls: ['./create-client.component.scss'],
 })
 export class CreateClientComponent {
-
   private service = inject(ClientService);
   private router = inject(Router);
+  private messages = inject(MessageService);
+  private fb = inject(FormBuilder);
 
-  loading = signal(false);
+  loading = false;
 
-  form = signal({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    notes: '',
-    username: ''
-  });
-
-  errors = signal({
-    name: '',
-    email: '',
-    username: ''
+  // ==========================
+  // FormGroup com FormBuilder
+  // ==========================
+  form: FormGroup = this.fb.group({
+    name: [''],
+    username: [''],
+    email: ['', Validators.email],
+    phone: [''],
+    company: ['', Validators.required],
+    notes: [''],
   });
 
   // ==========================
-  // Validação básica
+  // Getters para FormControls
   // ==========================
-  validate(): boolean {
-    const f = this.form();
-
-    this.errors.set({
-      name: f.name ? '' : 'Nome é obrigatório',
-      email: /\S+@\S+\.\S+/.test(f.email) ? '' : 'Email inválido',
-      username: f.username ? '' : 'Username é obrigatório'
-    });
-
-    return !this.errors().name &&
-      !this.errors().email &&
-      !this.errors().username;
+  get nameControl(): FormControl {
+    return this.form.get('name') as FormControl;
+  }
+  get usernameControl(): FormControl {
+    return this.form.get('username') as FormControl;
+  }
+  get emailControl(): FormControl {
+    return this.form.get('email') as FormControl;
+  }
+  get phoneControl(): FormControl {
+    return this.form.get('phone') as FormControl;
+  }
+  get companyControl(): FormControl {
+    return this.form.get('company') as FormControl;
+  }
+  get notesControl(): FormControl {
+    return this.form.get('notes') as FormControl;
   }
 
   // ==========================
   // Submit
   // ==========================
   submit() {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched(); // mostra erros
+      return;
+    }
 
-    if (!this.validate()) return;
+    this.loading = true;
 
-    this.loading.set(true);
-
-    this.service.create(this.form()).subscribe({
+    this.service.create(this.form.value).subscribe({
       next: () => {
-        alert('Cliente criado com sucesso 🚀');
+        this.messages.success('Cliente criado com sucesso 🚀');
         this.router.navigate(['/clients']);
       },
-      error: () => {
-        alert('Erro ao criar cliente');
-        this.loading.set(false);
-      }
+      error: (err: HttpErrorResponse) => {
+        const msg = err.error?.message ?? 'Erro ao criar cliente';
+        this.messages.error(msg);
+        this.loading = false;
+      },
     });
   }
 

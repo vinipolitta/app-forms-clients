@@ -1,0 +1,43 @@
+<div class="field" [class.field--error]="control.invalid && control.touched">
+  <label [for]="id" [ngStyle]="labelStyle">
+    {{ label }}
+    @if (required) {
+      <span class="required">*</span>
+    }
+  </label>
+
+  <div class="input-wrapper">
+    @if (type === 'select') {
+      <select
+        [id]="id"
+        [formControl]="control"
+        [ngStyle]="inputStyle"
+      >
+        <option value="" disabled>{{ placeholder || 'Selecione uma opção' }}</option>
+        @for (opt of options; track opt) {
+          <option [value]="opt">{{ opt }}</option>
+        }
+      </select>
+    } @else {
+      <input
+        [id]="id"
+        [formControl]="control"
+        [placeholder]="placeholder"
+        [type]="type"
+        [ngStyle]="inputStyle"
+      />
+    }
+  </div>
+
+  @if (control.invalid && control.touched) {
+    <div class="error-msg">
+      <span>⚠</span> {{ validator.getErrorMessage(control, label) }}
+    </div>
+  }
+
+  @if (formGroup && formErrorKey && formGroup.errors?.[formErrorKey]) {
+    <div class="error-msg">
+      <span>⚠</span> {{ formGroup.errors?.[formErrorKey] }}
+    </div>
+  }
+</div>
