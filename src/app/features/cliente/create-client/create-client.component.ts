@@ -58,9 +58,10 @@ export class CreateClientComponent {
   // ==========================
   // Submit
   // ==========================
+
   submit() {
     if (this.form.invalid) {
-      this.form.markAllAsTouched(); // mostra erros
+      this.form.markAllAsTouched();
       return;
     }
 
